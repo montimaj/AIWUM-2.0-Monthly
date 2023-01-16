@@ -1,12 +1,9 @@
 # Author: Sayantan Majumdar
-# Email: smxnv@mst.edu
+# Email: sayantan.majumdar@colostate.edu
 
 import geopandas as gpd
 import rasterio as rio
-import os
 import pandas as pd
-import gdal
-from .rasterops import map_nodata, get_raster_extent, read_raster_as_arr
 
 
 def reproject_vector(input_vector_file, outfile_path, ref_file, crs='epsg:4326', crs_from_file=True, raster=True):
@@ -56,47 +53,3 @@ def csv2shp(input_csv_file, outfile_path, delim=',', source_crs='epsg:4326', tar
     gdf.to_file(outfile_path)
     if target_crs != source_crs:
         reproject_vector(outfile_path, outfile_path=outfile_path, crs=target_crs, crs_from_file=False, ref_file=None)
-
-
-def shp2raster(input_shp_file, outfile_path, value_field=None, value_field_pos=0, xres=1000., yres=1000.,
-               add_value=True, output_crs='EPSG:4326', ref_raster=None):
-    """
-    Convert Shapefile to Raster TIFF file using GDAL rasterize
-    :param input_shp_file: Input Shapefile path
-    :param outfile_path: Output TIFF file path
-    :param value_field: Name of the value attribute. Set None to use value_field_pos
-    :param value_field_pos: Value field position (zero indexing)
-    :param xres: Pixel width in geographic units
-    :param yres: Pixel height in geographic units
-    :param add_value: Set False to disable adding value to existing raster cell
-    :param output_crs: Output raster CRS
-    :param ref_raster: Set to reference raster file path for creating the new raster as per this reference
-    raster SRS and resolution
-    :return: None
-    """
-
-    ext_pos = input_shp_file.rfind('.')
-    sep_pos = input_shp_file.rfind(os.sep)
-    if sep_pos == -1:
-        sep_pos = input_shp_file.rfind('/')
-    layer_name = input_shp_file[sep_pos + 1: ext_pos]
-    shp_file = gpd.read_file(input_shp_file)
-    if value_field is None:
-        value_field = shp_file.columns[value_field_pos]
-    if not ref_raster:
-        minx, miny, maxx, maxy = shp_file.geometry.total_bounds
-    else:
-        _, ref_file = read_raster_as_arr(ref_raster)
-        minx, miny, maxx, maxy = get_raster_extent(ref_file, is_rio_obj=True)
-        xres, yres = ref_file.res
-        output_crs = ref_file.crs.data['init']
-    no_data_value = map_nodata()
-    rasterize_options = gdal.RasterizeOptions(
-        format='GTiff', outputType=gdal.GDT_Float32,
-        outputSRS=output_crs,
-        outputBounds=[minx, miny, maxx, maxy],
-        xRes=xres, yRes=yres, noData=no_data_value,
-        initValues=0., layers=[layer_name],
-        add=add_value, attribute=value_field
-    )
-    gdal.Rasterize(outfile_path, input_shp_file, options=rasterize_options)

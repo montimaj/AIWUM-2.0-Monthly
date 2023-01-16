@@ -1,0 +1,54 @@
+#!/bin/sh
+#SBATCH --job-name=HydroMAP_ML
+#SBATCH --ntasks=1
+#SBATCH --time=00:30:00
+#SBATCH --mail-type=end,fail,requeue
+#SBATCH --mail-user=smxnv@mst.edu
+#SBATCH --export=all
+#SBATCH --mem=100G
+#SBATCH --out=HydroMAP-Foundry-%j.out
+
+
+python map_ml.py \
+--input-rt-shp '../Data/RT/Realtime_WU_meter_site_2018–2021.shp' \
+--input-rt-xls '../Data/RT/2__Real-time_WU_daily_values_2018–2021.xlsx' \
+--field-shp-dir ../../HydroMAP_ML/USGS_MAP/permitted_boundaries/Shapefiles/ \
+--load-files False \
+--load-data False \
+--load-model False \
+--use-sub-cols True \
+--sub-cols Year Month AF_Acre lat_dd long_dd crop \
+--test-size 0.2 \
+--random-state 1234 \
+--output-dir ../Outputs/ \
+--model-dir ../Models/ \
+--pred-attr AF_Acre \
+--data-list SSEBop RO ppt tmax SWB_HSG SWB_IRR \
+--gee-scale 1000 \
+--prism-path ../../HydroMAP_ML/USGS_MAP/MAP_project/files_from_Jordan/AIWUM_input_datasets/PRISM/PRISM_800m/AN81/ \
+--cdl-path ../../HydroMAP_ML/AIWUM2_Data/Inputs/CDL/ \
+--lanid-path ../../HydroMAP_ML/AIWUM2_Data/Inputs/LANID/TIFs/ \
+--nhd-path ../../HydroMAP_ML/AIWUM2_Data/Inputs/NHD/NHD_MAP_merged_nofish.shp \
+--map-extent-file '../Data/RT/Realtime_WU_meter_site_2018–2021.shp' \
+--train-year-list 2018 2019 2020 \
+--scaling True \
+--split-strategy 2 \
+--test-years 2020 \
+--load-map-csv False \
+--model-name DRF \
+--randomized-search False \
+--fold-count 5 \
+--repeats 3 \
+--outlier-op 2 \
+--gdal-path C:/OSGeo4W64/ \
+--gee-files RO \
+--prism-files ppt tmax \
+--swb-files SWB_IRR SWB_HSG \
+--load-pred-raster True \
+--load-pred-csv True \
+--load-map-extent True \
+--pred-year-list 2018 2019 2020 \
+--use-dask False \
+--swb-data-path ../../HydroMAP_ML/USGS_MAP/SWB_Data/ \
+--hsg-to-inf True \
+--pdp-plot-features All
