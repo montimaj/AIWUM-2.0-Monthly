@@ -1,5 +1,5 @@
 # Author: Sayantan Majumdar
-# Email: smxnv@mst.edu
+# Email: sayantan.majumdar@colostate.edu
 
 import rasterio as rio
 import numpy as np
@@ -76,6 +76,62 @@ def write_raster(raster_data, raster_file, transform_, outfile_path, no_data_val
             nodata=no_data_value
     ) as dst:
         dst.write(raster_data, raster_file.count)
+
+
+def shp2raster(input_shp_file, outfile_path, value_field=None, value_field_pos=0, xres=1000., yres=1000.,
+               add_value=True, ref_raster=None, burn_value=None):
+    """
+    Convert Shapefile to Raster TIFF file using GDAL rasterize
+    :param input_shp_file: Input Shapefile path
+    :param outfile_path: Output TIFF file path
+    :param value_field: Name of the value attribute. Set None to use value_field_pos
+    :param value_field_pos: Value field position (zero indexing)
+    :param xres: Pixel width in geographic units
+    :param yres: Pixel height in geographic units
+    :param add_value: Set False to disable adding value to existing raster cell
+    :param ref_raster: Set to reference raster file path for creating the new raster as per this reference raster
+    SRS and resolution
+    :param burn_value: Set burn value (int or float). If not None, then add_value, value_field, and value_field_pos
+    arguments are ignored
+    :return: None
+    """
+
+    ext_pos = input_shp_file.rfind('.')
+    sep_pos = input_shp_file.rfind(os.sep)
+    if sep_pos == -1:
+        sep_pos = input_shp_file.rfind('/')
+    layer_name = input_shp_file[sep_pos + 1: ext_pos]
+    shp_file = gpd.read_file(input_shp_file)
+    output_crs = shp_file.crs
+    if value_field is None:
+        value_field = shp_file.columns[value_field_pos]
+    if not ref_raster:
+        minx, miny, maxx, maxy = shp_file.geometry.total_bounds
+    else:
+        _, ref_file = read_raster_as_arr(ref_raster)
+        minx, miny, maxx, maxy = get_raster_extent(ref_file, is_rio_obj=True)
+        xres, yres = ref_file.res
+        output_crs = ref_file.crs.data['init']
+    no_data_value = map_nodata()
+    if burn_value is None:
+        rasterize_options = gdal.RasterizeOptions(
+            format='GTiff', outputType=gdal.GDT_Float32,
+            outputSRS=output_crs,
+            outputBounds=[minx, miny, maxx, maxy],
+            xRes=xres, yRes=yres, noData=no_data_value,
+            initValues=0., layers=[layer_name],
+            add=add_value, attribute=value_field
+        )
+    else:
+        rasterize_options = gdal.RasterizeOptions(
+            format='GTiff', outputType=gdal.GDT_Float32,
+            outputSRS=output_crs,
+            outputBounds=[minx, miny, maxx, maxy],
+            xRes=xres, yRes=yres, noData=no_data_value,
+            initValues=0., layers=[layer_name],
+            burnValues=[burn_value], allTouched=True
+        )
+    gdal.Rasterize(outfile_path, input_shp_file, options=rasterize_options)
 
 
 def get_ensemble_avg(image_arr, index, categorical=False):
@@ -317,103 +373,111 @@ def reproject_coords(src_crs, dst_crs, coords):
     return [[x, y] for x, y in zip(xs, ys)]
 
 
-def get_monthly_raster_file_names(raster_dir, year, data_name, data_start_month=None, data_end_month=None):
+def get_swb_var_dicts(raster_dir, year):
+    """
+    Get SWB variable dicts
+    :param raster_dir: Input SWB directory
+    :param year: Year in %y format
+    """
+    asc_file_name_dict = {
+        'SWB_HSG': raster_dir + 'Hydrologic_soil_groups__as_read_into_SWB.asc',
+        'SWB_AWC': raster_dir + 'Available_water_content__as_read_in_inches_per_foot.asc',
+        'SWB_MRD': glob(f'{raster_dir}Maximum_rooting_depth_*{year}*.asc')[0],
+        'SWB_SSM': glob(f'{raster_dir}Soil_Storage_Maximum_*{year}*.asc')[0]
+    }
+    nc_file_name_dict = {
+        'SWB_ET': glob(raster_dir + '*actual_et*.nc'),
+        'SWB_PPT': glob(raster_dir + '*precipitation*.nc'),
+        'SWB_INT': glob(raster_dir + '*interception*.nc'),
+        'SWB_IRR': glob(raster_dir + '*irrigation*.nc'),
+        'SWB_INF': glob(raster_dir + '*mnet_infiltration*.nc'),
+        'SWB_RINF': glob(raster_dir + '*rejected*.nc'),
+        'SWB_RO': glob(raster_dir + '*runoff*.nc'),
+        'SWB_SS': glob(raster_dir + '*storage*.nc')
+    }
+    return asc_file_name_dict, nc_file_name_dict
+
+
+def get_monthly_raster_file_names(raster_dir, year, month, data_name):
     """
     Obtain list of monthly raster names for SSEBop, OpenET, and PRISM
     :param raster_dir: Input raster directory containing monthly rasters
     :param year: Year in %y format
+    :param month: Month in %m format
     :param data_name: Name of the data set (used for PRISM and SWB data sets)
-    :param data_start_month: Data start month in %m format (required for monthly data sets)
-    :param data_end_month: Data end month in %m format (required for monthly data sets)
     :return: Raster name for GEE files and CDL or list of monthly raster names for SSEBop, OpenET, and PRISM
     depending on raster_dir
     """
 
+    if month < 10:
+        month = f'0{month}'
     if 'GEE' in raster_dir:
-        raster_file_name = raster_dir + data_name + '_' + str(year) + '.tif'
+        raster_file_name = f'{raster_dir}{data_name}_{year}.tif'
     elif 'CDL' in raster_dir:
-        raster_file_name = glob(raster_dir + str(year) + '*/*.img')[0]
+        raster_file_name = glob(f'{raster_dir}{year}*/*.img')[0]
     elif 'SWB' not in raster_dir:
-        raster_file_name = []
-        for m in range(data_start_month, data_end_month + 1):
-            month = str(m)
-            if m < 10:
-                month = '0' + month
-            if 'SSEBop' in raster_dir:
-                rf = glob(raster_dir + '*' + str(year) + month + '*.tif')[0]
-            elif 'PRISM' in raster_dir:
-                rf = glob(raster_dir + data_name + '/monthly/' + str(year) + '/prism*' + month + '.bil')[0]
-            else:
-                file_list = glob(raster_dir + str(year) + '/*month_' + month + '*.tif')
-                pairs = []
-                for rf in file_list:
-                    pairs.append((os.path.getsize(rf), rf))
-                pairs.sort(key=lambda s: s[0])
-                rf = pairs[-1][1]
-            raster_file_name.append(rf)
+        if 'SSEBop' in raster_dir:
+            raster_file_name = glob(f'{raster_dir}*{year}{month}*.tif')[0]
+        elif 'PRISM' in raster_dir:
+            raster_file_name = glob(f'{raster_dir}{data_name}/monthly/{year}/prism*{month}.bil')[0]
+        else:
+            file_list = glob(f'{raster_dir}{year}/*month_{month}*.tif')
+            pairs = []
+            for rf in file_list:
+                pairs.append((os.path.getsize(rf), rf))
+            pairs.sort(key=lambda s: s[0])
+            raster_file_name = pairs[-1][1]
     else:
-        asc_file_name_dict = {
-            'SWB_HSG': raster_dir + 'Hydrologic_soil_groups__as_read_into_SWB.asc',
-            'SWB_AWC': raster_dir + 'Available_water_content__as_read_in_inches_per_foot.asc',
-            'SWB_MRD': glob(raster_dir + 'Maximum_rooting_depth_*{}*.asc'.format(year))[0],
-            'SWB_SSM': glob(raster_dir + 'Soil_Storage_Maximum_*{}*.asc'.format(year))[0]
-        }
-        nc_file_name_dict = {
-            'SWB_ET': glob(raster_dir + '*actual_et*.nc'),
-            'SWB_PPT': glob(raster_dir + '*precipitation*.nc'),
-            'SWB_INT': glob(raster_dir + '*interception*.nc'),
-            'SWB_IRR': glob(raster_dir + '*irrigation*.nc'),
-            'SWB_INF': glob(raster_dir + '*mnet_infiltration*.nc'),
-            'SWB_RINF': glob(raster_dir + '*rejected*.nc'),
-            'SWB_RO': glob(raster_dir + '*runoff*.nc'),
-            'SWB_SS': glob(raster_dir + '*storage*.nc')
-        }
+        asc_file_name_dict, nc_file_name_dict = get_swb_var_dicts(raster_dir, year)
         if data_name in asc_file_name_dict.keys():
             raster_file_name = asc_file_name_dict[data_name]
         else:
             nc_file = nc_file_name_dict[data_name][0]
-            raster_file_name = netcdf_to_tif(nc_file, year, data_start_month, data_end_month, raster_dir, data_name)
+            raster_file_name = netcdf_to_tif(nc_file, year, month, raster_dir, data_name)
     return raster_file_name
 
 
-def netcdf_to_tif(nc_file, year, data_start_month, data_end_month, output_dir, data_name):
+def netcdf_to_tif(nc_file, year, month, output_dir, data_name):
     """
     Temporally slice a NetCDF file to multiple TIF files
     :param nc_file: Input NetCDF file
     :param year: Year in %y format
-    :param data_start_month: Data start month in %m format
-    :param data_end_month: Data end month in %m format
+    :param month: Month in %m format
     :param output_dir: Output directory to store the TIFs
     :param data_name: Name of the SWB data set
     """
 
-    rds = rioxarray.open_rasterio(nc_file, decode_times=False)
-    _, reference_date = rds.time.attrs['units'].split('days since')
-    rds['time'] = pd.date_range(start=reference_date, periods=rds.sizes['time'], freq='D')
-    end_day = 30
-    if data_end_month in [1, 3, 5, 7, 8, 10, 12]:
-        end_day += 1
-    rds_data = rds.sel(
-        time=slice(
-            '{}-{}-01'.format(year, data_start_month),
-            '{}-{}-{}'.format(year, data_end_month, end_day)
-        )
-    )
-    prefix = 'total'
-    band_name = nc_file.split('__')[0].split('1000m')[1]
-    rds_nodata = rds_data[band_name].attrs['_FillValue']
-    if data_name not in ['SWB_RO', 'SWB_SS', 'SWB_IRR']:
-        rds_data_reduced = rds_data[band_name].sum(dim='time')
-        rds_data_reduced = rds_data_reduced.where(rds_data_reduced >= 0., rds_nodata)
-    else:
-        rds_data_reduced = rds_data[band_name].mean(dim='time')
-        prefix = 'mean'
     out_dir = make_proper_dir_name(output_dir + 'TIFs')
     makedirs([out_dir])
-    output_tif = out_dir + data_name + '_{}_{}.tif'.format(prefix, year)
-    rds_data_reduced.rio.write_nodata(rds_nodata, inplace=True)
-    rds_data_reduced.rio.write_crs(rds_data.attrs['crs#proj4_string'], inplace=True)
-    rds_data_reduced.rio.to_raster(output_tif, nodata=rds_nodata)
+    output_tif = f'{out_dir}{data_name}_{year}.tif'
+    if not os.path.exists(output_tif):
+        rds = rioxarray.open_rasterio(nc_file, decode_times=False)
+        _, reference_date = rds.time.attrs['units'].split('days since')
+        rds['time'] = pd.date_range(start=reference_date, periods=rds.sizes['time'], freq='D')
+        end_day = 30
+        if month in [1, 3, 5, 7, 8, 10, 12]:
+            end_day += 1
+        elif month == 2:
+            if year % 4:
+                end_day = 28
+            else:
+                end_day = 29
+        rds_data = rds.sel(
+            time=slice(
+                '{}-{}-01'.format(year, month),
+                '{}-{}-{}'.format(year, month, end_day)
+            )
+        )
+        band_name = nc_file.split('__')[0].split('1000m')[1]
+        rds_nodata = rds_data[band_name].attrs['_FillValue']
+        if data_name not in ['SWB_RO', 'SWB_SS']:
+            rds_data_reduced = rds_data[band_name].sum(dim='time')
+            rds_data_reduced = rds_data_reduced.where(rds_data_reduced >= 0., rds_nodata)
+        else:
+            rds_data_reduced = rds_data[band_name].mean(dim='time')
+        rds_data_reduced.rio.write_nodata(rds_nodata, inplace=True)
+        rds_data_reduced.rio.write_crs(rds_data.attrs['crs#proj4_string'], inplace=True)
+        rds_data_reduced.rio.to_raster(output_tif, nodata=rds_nodata)
     return output_tif
 
 
@@ -501,14 +565,14 @@ def create_long_lat_grid(input_raster_file, output_dir, target_crs='EPSG:4326', 
     return long_grid, lat_grid
 
 
-def create_raster_file_dict(file_dirs, gee_files, prism_files, data_start_month, data_end_month, year):
+def create_raster_file_dict(file_dirs, gee_files, prism_files, swb_files, month, year):
     """
     Create raster file dictionary containing file paths required for create AIWUM 2.0 prediction maps
     :param file_dirs: Input file directories in the order of SSEBop, CDL, PRISM, GEE Files
     :param gee_files: List of GEE files
     :param prism_files: List of PRISM files
-    :param data_start_month: Data start month in %m format
-    :param data_end_month: Data end month in %m format
+    :param swb_files: List of SWB files
+    :param month: Month in %m format
     :param year: Year for which raster file dictionary will be created
     :return: Raster file dictionary. Note: for PRISM, SSEBop, and OpenET, the dictionary value will be a list
     of raster files corresponding to data_start_month and data_end_month
@@ -518,24 +582,28 @@ def create_raster_file_dict(file_dirs, gee_files, prism_files, data_start_month,
     for file_dir in file_dirs:
         if 'GEE_Files' in file_dir:
             for gee_file in gee_files:
-                raster_file = get_monthly_raster_file_names(file_dir, year, gee_file)
+                raster_file = get_monthly_raster_file_names(file_dir, year, 1, gee_file)
                 raster_file_dict[gee_file] = raster_file
         elif 'PRISM' in file_dir:
             for prism_file in prism_files:
-                raster_file = get_monthly_raster_file_names(file_dir, year, prism_file, data_start_month,
-                                                            data_end_month)
+                raster_file = get_monthly_raster_file_names(file_dir, year, prism_file, month)
                 raster_file_dict[prism_file] = raster_file
         elif 'SSEBop' in file_dir:
-            raster_file = get_monthly_raster_file_names(file_dir, year, 'SSEBop', data_start_month,
-                                                        data_end_month)
+            raster_file = get_monthly_raster_file_names(file_dir, year, 'SSEBop', month)
             raster_file_dict['SSEBop'] = raster_file
-        else:
+        elif 'SWB' in file_dir:
+            asc_file_name_dict, _ = get_swb_var_dicts(file_dir, year)
+            for swb_file in swb_files:
+                if swb_file in asc_file_name_dict.keys():
+                    raster_file = asc_file_name_dict[swb_file]
+                else:
+                    raster_file = glob(file_dir + f'TIFs/{swb_file}*{year}.tif')[0]
+                raster_file_dict[swb_file] = raster_file
+        elif 'OpenET' in file_dir:
             if year < 2016:
-                raster_file = get_monthly_raster_file_names(file_dirs[0], year, 'SSEBop', data_start_month,
-                                                            data_end_month)
+                raster_file = get_monthly_raster_file_names(file_dirs[0], year, 'SSEBop', month)
             else:
-                raster_file = get_monthly_raster_file_names(file_dir, year, 'OpenET', data_start_month,
-                                                            data_end_month)
+                raster_file = get_monthly_raster_file_names(file_dir, year, 'OpenET', month)
             raster_file_dict['OpenET'] = raster_file
     return raster_file_dict
 
@@ -560,7 +628,10 @@ def generate_predictor_raster_values(raster_file_list, cdl_file, output_dir, yea
     rf_file = None
     raster_vals = []
     for rf in raster_file_list:
-        out_rf = reproj_dir + rf[rf.rfind(os.sep) + 1:]
+        os_sep = rf.rfind(os.sep)
+        if os_sep == -1:
+            os_sep = rf.rfind('/')
+        out_rf = reproj_dir + rf[os_sep + 1:]
         out_rf_cropped = out_rf[: out_rf.rfind('.')] + '_Crop.tif'
         if data in ['OpenET', 'SSEBop', 'ppt', 'tmin', 'tmax']:
             crop_raster(rf, input_extent_file, output_raster_file=out_rf_cropped)
@@ -636,7 +707,8 @@ def reproject_raster_gdal_syscall(input_raster_file, outfile_path, resampling_fa
 
 
 def reproject_raster_gdal(input_raster_file, outfile_path, resampling_factor=1, resampling_func='near',
-                          downsampling=True, from_raster=None, keep_original=False, dst_xres=None, dst_yres=None):
+                          downsampling=True, from_raster=None, keep_original=False, dst_xres=None, dst_yres=None,
+                          output_dtype='float32'):
     """
     Reproject raster using GDALWarp Python API. Use this from Linux only for gdal.GRA_Sum
     :param input_raster_file: Input raster file
@@ -649,6 +721,7 @@ def reproject_raster_gdal(input_raster_file, outfile_path, resampling_factor=1, 
     is not changed
     :param dst_xres: Target xres in input_raster_file units. Set resampling_factor to None
     :param dst_yres: Target yres in input_raster_file units. Set resampling factor to None
+    :param output_dtype:  Output data type
     :return: None
     """
 
@@ -672,9 +745,15 @@ def reproject_raster_gdal(input_raster_file, outfile_path, resampling_factor=1, 
         xres, yres = xres * resampling_factor, yres * resampling_factor
     resampling_dict = {
         'near': gdal.GRA_NearestNeighbour, 'bilinear': gdal.GRA_Bilinear, 'cubic': gdal.GRA_Cubic,
-        'cubicspline': gdal.GRA_CubicSpline, 'lanczos': gdal.GRA_Lanczos,  # 'sum': gdal.GRA_Sum,
+        'cubicspline': gdal.GRA_CubicSpline, 'lanczos': gdal.GRA_Lanczos,  'sum': gdal.GRA_Sum,
         'average': gdal.GRA_Average, 'mode': gdal.GRA_Mode, 'max': gdal.GRA_Max,
         'min': gdal.GRA_Min, 'med': gdal.GRA_Med, 'q1': gdal.GRA_Q1, 'q3': gdal.GRA_Q3,
+    }
+    output_dtype_dict = {
+        'byte': gdal.GDT_Byte,
+        'int16': gdal.GDT_Int16,
+        'int32': gdal.GDT_Int32,
+        'float32': gdal.GDT_Float32
     }
     warp_options = gdal.WarpOptions(
         outputBounds=extent,
@@ -682,7 +761,7 @@ def reproject_raster_gdal(input_raster_file, outfile_path, resampling_factor=1, 
         dstSRS=dst_proj,
         resampleAlg=resampling_dict[resampling_func],
         xRes=xres, yRes=yres,
-        outputType=gdal.GDT_Float32,
+        outputType=output_dtype_dict[output_dtype],
         multithread=True,
         format='GTiff',
         options=['-overwrite']
@@ -723,5 +802,93 @@ def create_cdl_raster_aiwum1(aiwum1_cdl_dir, output_dir, year_list):
         cdl_output = output_dir + 'CDL_' + str(year) + '.tif'
         write_raster(cdl_arr, cdl_rio_file, transform_=cdl_rio_file.transform, outfile_path=cdl_output,
                      no_data_value=0)
+        cdl_data_dict[year] = cdl_output
+    return cdl_data_dict
+
+
+def correct_cdl_rasters(input_cdl_dir, nhd_shp_file, lanid_dir, field_shp_dir, output_dir, year_list, cdl_ext='img',
+                        lanid_ext='tif'):
+    """
+    Create yearly CDL rasters (100 m) based on the high resolution CDL data (30 m)
+    :param input_cdl_dir: CDL directory
+    :param nhd_shp_file: MAP NHD shapefile
+    :param lanid_dir: LANID directory
+    :param field_shp_dir: Field shapefile directory for permitted boundaries
+    :param output_dir: Output directory
+    :param year_list: List of years
+    :param cdl_ext: Extension of the CDL files (e.g., tif, img, etc.)
+    :param lanid_ext: Extension of the LANID files (e.g., tif, img, etc.)
+    :return: Dictionary containing the output CDL file paths as values and year as keys
+    """
+
+    cdl_data_dict = {}
+    cdl_100m_tifs = []
+    lanid_100m_tifs = []
+    field_100m_tifs = []
+    for year in year_list:
+        cdl_file = glob(f'{input_cdl_dir}*/{year}*.{cdl_ext}', recursive=True)[0]
+        cdl_file_name = cdl_file[cdl_file.rfind(os.sep) + 1: cdl_file.rfind('.')].replace('30m', '100m')
+        cdl_100m_tif = f'{output_dir}{cdl_file_name}.tif'
+        cdl_100m_tifs.append(cdl_100m_tif)
+        reproject_raster_gdal(
+            cdl_file,
+            outfile_path=cdl_100m_tif,
+            resampling_func='mode',
+            dst_xres=100,
+            dst_yres=100,
+            output_dtype='byte'
+        )
+        lanid_file = glob(f'{lanid_dir}*{year}.{lanid_ext}')[0]
+        landid_100m_file = output_dir + lanid_file[lanid_file.rfind(os.sep) + 1: lanid_file.rfind('.')] + '_100m.tif'
+        lanid_100m_tifs.append(landid_100m_file)
+        reproject_raster_gdal(
+            lanid_file,
+            outfile_path=landid_100m_file,
+            resampling_func='mode',
+            from_raster=cdl_100m_tif,
+            output_dtype='byte'
+        )
+        field_shp_file = glob(f'{field_shp_dir}*{year}.shp')[0]
+        field_shp_name = field_shp_file[field_shp_file.rfind(os.sep) + 1: field_shp_file.rfind('.')]
+        field_100m_tif = f'{output_dir}{field_shp_name}_100m.tif'
+        shp2raster(
+            field_shp_file,
+            outfile_path=field_100m_tif,
+            xres=100,
+            yres=100,
+            burn_value=1.
+        )
+        field_100m_full_tif = f'{output_dir}{field_shp_name}_100m_full.tif'
+        field_100m_tifs.append(field_100m_full_tif)
+        reproject_raster_gdal(
+            field_100m_tif,
+            field_100m_full_tif,
+            from_raster=cdl_100m_tif
+        )
+    nhd_100m_tif = output_dir + 'NHD_MAP_100m.tif'
+    shp2raster(
+        nhd_shp_file,
+        outfile_path=nhd_100m_tif,
+        ref_raster=cdl_100m_tifs[0],
+        burn_value=1.
+    )
+    nhd_arr = read_raster_as_arr(nhd_100m_tif, get_file=False)
+    for cdl_100m_tif, lanid_100m_tif, field_100m_tif, year in zip(
+            cdl_100m_tifs, lanid_100m_tifs, field_100m_tifs, year_list
+    ):
+        cdl_arr, cdl_rio_file = read_raster_as_arr(cdl_100m_tif, change_dtype=False)
+        lanid_arr = read_raster_as_arr(lanid_100m_tif, get_file=False, change_dtype=False)
+        field_arr = read_raster_as_arr(field_100m_tif, get_file=False, change_dtype=False)
+        cdl_arr[(cdl_arr == 111) | (cdl_arr == 83)] = 92
+        cdl_arr[nhd_arr == 1] = 0
+        cdl_arr[(cdl_arr != 3) & (cdl_arr != 92) & (lanid_arr == 0) & (field_arr != 1)] = 0
+        cdl_output = output_dir + f'CDL_100m_Corrected_{year}.tif'
+        write_raster(
+            cdl_arr,
+            cdl_rio_file,
+            transform_=cdl_rio_file.transform,
+            outfile_path=cdl_output,
+            no_data_value=0
+        )
         cdl_data_dict[year] = cdl_output
     return cdl_data_dict

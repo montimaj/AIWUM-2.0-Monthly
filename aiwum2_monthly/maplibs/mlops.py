@@ -1,5 +1,5 @@
 # Author: Sayantan Majumdar
-# Email: smxnv@mst.edu
+# Email: sayantan.majumdar@colostate.edu
 
 
 import pandas as pd
@@ -11,72 +11,81 @@ from dask_ml.model_selection import GridSearchCV as DaskGCV
 from dask_ml.model_selection import RandomizedSearchCV as DaskRCV
 from dask_jobqueue import SLURMCluster
 from sklearn.ensemble import RandomForestRegressor, ExtraTreesRegressor
+from sklearn.svm import LinearSVR
 from sklearn.linear_model import LinearRegression
 from sklearn.neighbors import KNeighborsRegressor
 from sklearn.tree import DecisionTreeRegressor
 from sklearn.ensemble import AdaBoostRegressor
 from sklearn.ensemble import BaggingRegressor
-from sklearn.model_selection import RepeatedKFold, GridSearchCV, RandomizedSearchCV, cross_validate, ShuffleSplit
+from sklearn.model_selection import RepeatedStratifiedKFold, RepeatedKFold, GridSearchCV, RandomizedSearchCV
 from sklearn.metrics import r2_score, mean_squared_error, mean_absolute_error
+from sklearn.inspection import PartialDependenceDisplay as PDisp
 from .sysops import makedirs, make_proper_dir_name
 
 
-def get_model_param_dict(random_state=0):
+def get_model_param_dict(random_state=0, use_dask=False):
     """
     Get model object dictionaries and parameter dictionary for different models
     :param random_state: PRNG seed
+    :param use_dask: Set True if using Dask in a distributed computing environment
     :return: Dictionary of the model objects and Dictionary of models containing dictionary of the corresponding
     hyperparameters as tuples
     """
 
+    n_jobs = -1
+    if use_dask:
+        n_jobs = 1
     model_dict = {
         'LGBM': LGBMRegressor(
             tree_learner='feature', random_state=random_state,
-            deterministic=True, force_row_wise=True
+            deterministic=True, force_row_wise=True,
         ),
-        'BRF': LGBMRegressor(
+        'DRF': LGBMRegressor(
             boosting_type='rf', tree_learner='feature',
             bagging_freq=1, random_state=random_state,
             deterministic=True, force_row_wise=True
         ),
-        'RF': RandomForestRegressor(random_state=random_state, n_jobs=-1),
-        'ETR': ExtraTreesRegressor(random_state=random_state, n_jobs=-1),
+        'RF': RandomForestRegressor(random_state=random_state, n_jobs=n_jobs),
+        'ETR': ExtraTreesRegressor(random_state=random_state, n_jobs=n_jobs, bootstrap=True),
         'DT': DecisionTreeRegressor(random_state=random_state),
-        'BT': BaggingRegressor(random_state=random_state, n_jobs=-1),
+        'BT': BaggingRegressor(random_state=random_state, n_jobs=n_jobs),
         'ABR': AdaBoostRegressor(random_state=random_state),
-        'KNN': KNeighborsRegressor(n_jobs=-1),
-        'LR': LinearRegression(n_jobs=-1)
+        'KNN': KNeighborsRegressor(n_jobs=n_jobs),
+        'SVR': LinearSVR(random_state=random_state),
+        'LR': LinearRegression(n_jobs=n_jobs)
     }
 
     param_dict = {'LGBM': {
-        'n_estimators': [500, 700, 900],
-        'boosting_type': ['gbdt', 'goss'],
-        'max_depth': [20, -1],
+        'n_estimators': [300, 400, 500],
+        'max_depth': [16, 20, -1],
         'learning_rate': [0.01, 0.05],
         'subsample': [1, 0.9],
         'colsample_bytree': [1, 0.9],
         'colsample_bynode': [1, 0.9],
-        'path_smooth': [0.1, 0.2, 0.3],
-        'num_leaves': [31, 63],
-        'min_data_in_leaf': [20, 30, 35]
-    }, 'BRF': {
-        'n_estimators': [500, 700, 900],
-        'max_depth': [20, 25, 30, -1],
-        'learning_rate': [0.006, 0.007, 0.008, 0.009],
-        'bagging_fraction': [0.5, 0.4, 0.3],
-        'path_smooth': [0.1, 0.2, 0.3],
-        'num_leaves': [127, 255, 511],
-        'min_data_in_leaf': [10, 20, 30, 50]
+        'path_smooth': [0.1, 0.2],
+        'num_leaves': [31, 32],
+        'min_data_in_leaf': [30, 40]
+    }, 'DRF': {
+        'n_estimators': [500],
+        'max_depth': [8, -1],
+        'learning_rate': [1e-4],
+        'bagging_fraction': [0.8],
+        'feature_fraction': [0.8],
+        'lambda_l2': [0, 0.1],
+        'path_smooth': [0, 0.1],
+        'num_leaves': [100],
+        'min_data_in_leaf': [30],
     }, 'RF': {
-        'n_estimators': [300, 400, 500, 600, 700, 800],
-        'max_features': [5, 6, 7],
-        'max_depth': [6, 10, 20, None],
-        'max_samples': [None, 0.9, 0.8, 0.7],
-        'min_samples_leaf': [1, 5e-4, 1e-5]
+        'n_estimators': [500],
+        'max_features': [10, 12, 8],
+        'max_depth': [8, None],
+        'max_leaf_nodes': [4, 8, None],
+        'max_samples': [None],
+        'min_samples_leaf': [1, 2, 3]
     }, 'ETR': {
-        'n_estimators': [300, 400, 500, 600, 700, 800],
+        'n_estimators': [300, 400, 500],
         'max_features': [5, 6, 7],
-        'max_depth': [6, 10, 20, None],
+        'max_depth': [6, 10, None],
         'max_samples': [None, 0.9, 0.8, 0.7],
         'min_samples_leaf': [1, 5e-4, 1e-5]
     }, 'DT': {
@@ -84,9 +93,9 @@ def get_model_param_dict(random_state=0):
         'max_depth': [6, 10, 20, None],
         'min_samples_leaf': [1, 5e-4, 1e-5]
     }, 'BT': {
-        'n_estimators': [300, 400, 500, 600, 700],
+        'n_estimators': [300, 400, 500],
         'max_features': [5, 6, 7],
-        'max_samples': [None, 0.9, 0.8, 0.7]
+        'max_samples': [1, 0.9, 0.8]
     }, 'ABR': {
         'n_estimators': [300, 400, 500, 600, 700],
         'learning_rate': [0.005, 0.0098, 0.01, 0.05],
@@ -96,14 +105,18 @@ def get_model_param_dict(random_state=0):
         'weights': ['uniform', 'distance'],
         'leaf_size': [30, 50, 20],
         'p': [1, 2, 3, 5],
+    }, 'SVR': {
+        'C': [1, 1.5, 2],
+        'max_iter': [1000, 2000],
+        'loss': ['epsilon_insensitive', 'squared_epsilon_insensitive']
     }, 'LR': {
     }}
     return model_dict, param_dict
 
 
 def build_crop_ml_models(x_train, x_test, y_train, y_test, year_train, year_test, year_col, crop_col, model_dir,
-                         model_name='XGB', random_state=43, load_model=False, fold_count=5, repeats=3, x_scaler=None,
-                         y_scaler=None, randomized_search=False, test_size=0.2, shuffle_split=False, use_dask=False):
+                         model_name='DRF', random_state=43, load_model=False, fold_count=5, repeats=3, x_scaler=None,
+                         y_scaler=None, randomized_search=False, stratified_kfold=False, use_dask=False):
     """
     Build individual ML models for each crop type
     :param x_train: X_train numpy array or pandas dataframe
@@ -123,8 +136,7 @@ def build_crop_ml_models(x_train, x_test, y_train, y_test, year_train, year_test
     :param x_scaler: X scaler object
     :param y_scaler: y scaler object
     :param randomized_search: Set True to use the more computationally efficient RandomizedSearchCV
-    :param test_size: Test data size for ShuffleSplit, works only when shuffle_split is True
-    :param shuffle_split: Set True to use ShuffleSplit instead of KFold
+    :param stratified_kfold: Set True to use RepeatedStratifiedKFold based on the crop type
     :param use_dask: Flag for using dask
     :return: List of trained models
     """
@@ -146,20 +158,20 @@ def build_crop_ml_models(x_train, x_test, y_train, y_test, year_train, year_test
         year_test_df = year_test[crop_test_check]
         crop_model_name = model_name + '_' + str(crop)
         model = build_ml_model(x_train_data, y_train_data, model_dir, crop_model_name, random_state, load_model,
-                               fold_count, repeats, y_scaler, randomized_search, test_size, shuffle_split, use_dask)
+                               fold_count, repeats, y_scaler, randomized_search, stratified_kfold, use_dask)
         models.append(model)
         pred_df = get_prediction_results(model, x_train_data, x_test_data, y_train_data, y_test_data, x_scaler,
                                          y_scaler, year_train_df, year_test_df, model_dir, crop_model_name, year_col,
                                          crop_col)
-        merged_pred_df = merged_pred_df.append(pred_df)
+        merged_pred_df = pd.concat([merged_pred_df, pred_df])
     calc_train_test_metrics(merged_pred_df, crop_col, year_col)
     merged_pred_df.to_csv(model_dir + 'Merged_Crop_Predictions_{}.csv'.format(model_name), index=False)
     return models
 
 
-def build_ml_model(x_train, y_train, model_dir, model_name='XGB', random_state=43, load_model=False,
-                   fold_count=5, repeats=3, y_scaler=None, randomized_search=False, test_size=0.2, shuffle_split=False,
-                   use_dask=False):
+def build_ml_model(x_train, y_train, model_dir, model_name='DRF', random_state=43, load_model=False,
+                   fold_count=5, repeats=3, y_scaler=None, randomized_search=False, stratified_kfold=False,
+                   use_dask=False, **kwargs):
     """
     Build an ML model
     :param x_train: X_train numpy array or pandas dataframe
@@ -172,9 +184,9 @@ def build_ml_model(x_train, y_train, model_dir, model_name='XGB', random_state=4
     :param repeats: Number of repeats for KFold
     :param y_scaler: y scaler object
     :param randomized_search: Set True to use the more computationally efficient RandomizedSearchCV
-    :param test_size: Test data size for ShuffleSplit, works only when shuffle_split is True
-    :param shuffle_split: Set True to use ShuffleSplit instead of KFold
+    :param stratified_kfold: Set True to use RepeatedStratifiedKFold based on the crop type
     :param use_dask: Flag for using dask
+    :param kwargs: Pass the 'crop_train' or 'year_train' Pandas dataframe if stratified_kfold is True
     :return: Trained model object
     """
 
@@ -184,7 +196,7 @@ def build_ml_model(x_train, y_train, model_dir, model_name='XGB', random_state=4
         cv_lib = 'sklearn'
         if use_dask:
             cluster = SLURMCluster(
-                cores=64,
+                cores=32,
                 processes=1,
                 memory="10G",
                 walltime="00:30:00",
@@ -198,21 +210,20 @@ def build_ml_model(x_train, y_train, model_dir, model_name='XGB', random_state=4
             )
             dask_client = Client(cluster)
             print('Waiting for dask workers...')
-            dask_client.wait_for_workers(10)
+            dask_client.wait_for_workers(1)
             cv_lib = 'dask_ml'
-        model_dict, param_dict = get_model_param_dict(random_state)
-        if not shuffle_split:
-            cv = RepeatedKFold(n_splits=fold_count, n_repeats=repeats, random_state=random_state)
-        else:
-            cv = ShuffleSplit(n_splits=fold_count, test_size=test_size, random_state=random_state)
+        model_dict, param_dict = get_model_param_dict(random_state, use_dask)
+        cv = RepeatedKFold(n_splits=fold_count, n_repeats=repeats, random_state=random_state)
+        if stratified_kfold:
+            stratify_labels = kwargs['stratify_labels'].to_numpy().ravel()
+            cv = RepeatedStratifiedKFold(n_splits=fold_count, n_repeats=repeats, random_state=random_state)
+            cv = cv.split(x_train, stratify_labels)
         makedirs([make_proper_dir_name(model_dir)])
-        x = x_train.copy()
-        y = y_train.copy()
         print('\nSearching best params for {}...'.format(model_name))
         if '_' in model_name:
             model_name = model_name[: model_name.find('_')]
         model = model_dict[model_name]
-        scoring_metrics = ['r2', 'neg_mean_squared_error', 'neg_mean_absolute_error']
+        scoring_metrics = ['r2', 'neg_root_mean_squared_error', 'neg_mean_absolute_error']
         cv_func_dict = {
             'dask_ml': {1: DaskRCV, 0: DaskGCV},
             'sklearn': {1: RandomizedSearchCV, 0: GridSearchCV}
@@ -230,7 +241,7 @@ def build_ml_model(x_train, y_train, model_dir, model_name='XGB', random_state=4
                 scoring=scoring_metrics, n_jobs=-1, cv=cv, refit=scoring_metrics[1],
                 return_train_score=True
             )
-        model_grid.fit(x, y)
+        model_grid.fit(x_train, y_train)
         get_grid_search_stats(model_grid, y_scaler)
         model = model_grid.best_estimator_
         print('Best params: ', model_grid.best_params_)
@@ -239,10 +250,10 @@ def build_ml_model(x_train, y_train, model_dir, model_name='XGB', random_state=4
             dask_client.close()
     else:
         model = pickle.load(open(model_file, mode='rb'))
-    if model_name in ['RF', 'ETR', 'LGBM', 'BRF']:
+    if model_name in ['RF', 'ETR', 'LGBM', 'DRF']:
         imp_dict = {'Features': list(x_train.columns)}
         f_imp = np.array(model.feature_importances_).astype(np.float)
-        if model_name in ['LGBM', 'BRF']:
+        if model_name in ['LGBM', 'DRF']:
             f_imp /= np.sum(f_imp)
         imp_dict['F_IMP'] = np.round(f_imp, 5)
         imp_df = pd.DataFrame(data=imp_dict).sort_values(by='F_IMP', ascending=False)
@@ -251,7 +262,7 @@ def build_ml_model(x_train, y_train, model_dir, model_name='XGB', random_state=4
     return model
 
 
-def calc_train_test_metrics(pred_df, crop_col, year_col):
+def calc_train_test_metrics(pred_df, crop_col=None, year_col=None):
     """
     Calculate train and test metrics from the prediction data frames
     :param pred_df: Prediction data frame
@@ -262,10 +273,10 @@ def calc_train_test_metrics(pred_df, crop_col, year_col):
 
     train_data = pred_df[pred_df.DATA == 'TRAIN']
     test_data = pred_df[pred_df.DATA == 'TEST']
-    train_actual = train_data.Actual_AF.to_numpy().ravel()
-    train_pred = train_data.Pred_AF.to_numpy().ravel()
-    test_actual = test_data.Actual_AF.to_numpy().ravel()
-    test_pred = test_data.Pred_AF.to_numpy().ravel()
+    train_actual = train_data.Actual_GW.to_numpy().ravel()
+    train_pred = train_data.Pred_GW.to_numpy().ravel()
+    test_actual = test_data.Actual_GW.to_numpy().ravel()
+    test_pred = test_data.Pred_GW.to_numpy().ravel()
     print('***Overall stats***\n')
     print('Train + Validation results...')
     r2, mae, rmse = get_prediction_stats(train_actual, train_pred)
@@ -273,25 +284,26 @@ def calc_train_test_metrics(pred_df, crop_col, year_col):
     print('\nTest results...')
     r2, mae, rmse = get_prediction_stats(test_actual, test_pred)
     print('R2:', r2, 'RMSE:', rmse, 'MAE:', mae)
-    cols = [col for col in pred_df.columns if col.startswith(crop_col)] + [year_col]
-    for col in cols:
-        print('\n***{} specific stats***\n'.format(col))
-        if col != year_col:
-            col_val_list = [1]
-        else:
-            col_val_list = np.unique(np.append(train_data[col].unique(), test_data[col].unique()))
-        for val in sorted(col_val_list):
-            print('\n{} type: {}'.format(col, val))
-            train_actual = train_data[train_data[col] == val]['Actual_AF'].to_numpy().ravel()
-            train_pred = train_data[train_data[col] == val]['Pred_AF'].to_numpy().ravel()
-            test_actual = test_data[test_data[col] == val]['Actual_AF'].to_numpy().ravel()
-            test_pred = test_data[test_data[col] == val]['Pred_AF'].to_numpy().ravel()
-            print('Train + Validation results...')
-            r2, mae, rmse = get_prediction_stats(train_actual, train_pred)
-            print('R2:', r2, 'RMSE:', rmse, 'MAE:', mae)
-            print('\nTest results...')
-            r2, mae, rmse = get_prediction_stats(test_actual, test_pred)
-            print('R2:', r2, 'RMSE:', rmse, 'MAE:', mae)
+    if crop_col and year_col:
+        cols = [col for col in pred_df.columns if col.startswith(crop_col)] + [year_col]
+        for col in cols:
+            print('\n***{} specific stats***\n'.format(col))
+            if col != year_col:
+                col_val_list = [1]
+            else:
+                col_val_list = np.unique(np.append(train_data[col].unique(), test_data[col].unique()))
+            for val in sorted(col_val_list):
+                print('\n{} type: {}'.format(col, val))
+                train_actual = train_data[train_data[col] == val]['Actual_GW'].to_numpy().ravel()
+                train_pred = train_data[train_data[col] == val]['Pred_GW'].to_numpy().ravel()
+                test_actual = test_data[test_data[col] == val]['Actual_GW'].to_numpy().ravel()
+                test_pred = test_data[test_data[col] == val]['Pred_GW'].to_numpy().ravel()
+                print('Train + Validation results...')
+                r2, mae, rmse = get_prediction_stats(train_actual, train_pred)
+                print('R2:', r2, 'RMSE:', rmse, 'MAE:', mae)
+                print('\nTest results...')
+                r2, mae, rmse = get_prediction_stats(test_actual, test_pred)
+                print('R2:', r2, 'RMSE:', rmse, 'MAE:', mae)
 
 
 def get_grid_search_stats(gs_model, y_scaler=None):
@@ -305,7 +317,7 @@ def get_grid_search_stats(gs_model, y_scaler=None):
     scores = gs_model.cv_results_
     print('Train Results...')
     r2 = scores['mean_train_r2'].mean()
-    rmse = np.sqrt(-scores['mean_train_neg_mean_squared_error'].mean())
+    rmse = -scores['mean_train_neg_root_mean_squared_error'].mean()
     mae = -scores['mean_train_neg_mean_absolute_error'].mean()
     if y_scaler:
         rmse = y_scaler.inverse_transform(np.array([rmse]).reshape(1, -1)).ravel()[0]
@@ -313,36 +325,8 @@ def get_grid_search_stats(gs_model, y_scaler=None):
     print('R2:', r2, 'RMSE:', rmse, 'MAE:', mae)
     print('Validation Results...')
     r2 = scores['mean_test_r2'].mean()
-    rmse = np.sqrt(-scores['mean_test_neg_mean_squared_error'].mean())
+    rmse = -scores['mean_test_neg_root_mean_squared_error'].mean()
     mae = -scores['mean_test_neg_mean_absolute_error'].mean()
-    if y_scaler:
-        rmse = y_scaler.inverse_transform(np.array([rmse]).reshape(1, -1)).ravel()[0]
-        mae = y_scaler.inverse_transform(np.array([mae]).reshape(1, -1)).ravel()[0]
-    print('R2:', r2, 'RMSE:', rmse, 'MAE:', mae)
-
-
-def get_test_cv_stats(model, x_test, y_test, y_scaler, fold_count=5, repeats=3, random_state=0):
-    """
-    Get cross validation statistics for the test data
-    :param model: Model object
-    :param x_test: X_test numpy array or pandas dataframe
-    :param y_test: y_test numpy array
-    :param fold_count: Number of folds for KFold
-    :param repeats: Number of repeats for KFold
-    :param y_scaler: y scaler object
-    :param random_state: PRNG seed
-    :return: None
-    """
-
-    cv = RepeatedKFold(n_splits=fold_count, n_repeats=repeats, random_state=random_state)
-    x_test = np.ascontiguousarray(x_test)
-    print('Test Results...')
-    scores = cross_validate(model, x_test, y_test, cv=cv,
-                            scoring=('r2', 'neg_mean_squared_error', 'neg_mean_absolute_error'),
-                            return_train_score=True, n_jobs=-1)
-    r2 = scores['test_r2'].mean()
-    rmse = np.sqrt(-scores['test_neg_mean_squared_error'].mean())
-    mae = -scores['test_neg_mean_absolute_error'].mean()
     if y_scaler:
         rmse = y_scaler.inverse_transform(np.array([rmse]).reshape(1, -1)).ravel()[0]
         mae = y_scaler.inverse_transform(np.array([mae]).reshape(1, -1)).ravel()[0]
@@ -367,7 +351,8 @@ def get_prediction_stats(actual_values, pred_values, precision=3):
 
 
 def get_prediction_results(model, x_train, x_test, y_train, y_test, x_scaler, y_scaler, year_train, year_test,
-                           model_dir, model_name='BRF', year_col='ReportYear', crop_col='Crop_CDL'):
+                           model_dir, model_name='DRF', year_col='ReportYear',  crop_col='Crop_CDL',
+                           crop_train=None, crop_test=None):
     """
     Get model prediction results
     :param model: Trained model object
@@ -383,6 +368,8 @@ def get_prediction_results(model, x_train, x_test, y_train, y_test, x_scaler, y_
     :param model_name: Model name
     :param year_col: Name of the year column
     :param crop_col: Name of the crop column
+    :param crop_train: Crop train data frame to append to train data
+    :param crop_test: Crop test data frame to append to test data
     :return: Prediction data frame
     """
 
@@ -399,16 +386,91 @@ def get_prediction_results(model, x_train, x_test, y_train, y_test, x_scaler, y_
     train_df[year_col] = year_train[year_col].to_numpy().ravel()
     test_df = x_test.copy()
     test_df[year_col] = year_test[year_col].to_numpy().ravel()
+    crop_models = '_' in model_name
+    if (not crop_models) and (crop_col not in train_df.columns):
+        train_df[crop_col] = crop_train[crop_col].to_numpy().ravel()
+        test_df[crop_col] = crop_test[crop_col].to_numpy().ravel()
     train_df['DATA'] = ['TRAIN'] * train_df.shape[0]
-    train_df['Pred_AF'] = y_pred_train
-    train_df['Actual_AF'] = y_train
+    train_df['Pred_GW'] = y_pred_train
+    train_df['Actual_GW'] = y_train
     test_df['DATA'] = ['TEST'] * test_df.shape[0]
-    test_df['Pred_AF'] = y_pred_test
-    test_df['Actual_AF'] = y_test
-    pred_df = train_df.append(test_df)
-    pred_df['Error_AF'] = pred_df['Actual_AF'] - pred_df['Pred_AF']
-    if '_' in model_name:
+    test_df['Pred_GW'] = y_pred_test
+    test_df['Actual_GW'] = y_test
+    pred_df = pd.concat([train_df, test_df])
+    pred_df['Error_GW'] = pred_df['Actual_GW'] - pred_df['Pred_GW']
+    if crop_models:
         crop = model_name[model_name.find('_') + 1:]
-        pred_df[crop_col] = [crop] * pred_df['Error_AF'].size
+        pred_df[crop_col] = [crop] * pred_df['Error_GW'].size
     pred_df.to_csv(model_dir + 'Predictions_{}.csv'.format(model_name), index=False)
     return pred_df
+
+
+def create_pdplots(x_train, model, feature_names, outdir, scaling=True, random_state=0):
+    """
+    Create partial dependence plots
+    :param x_train: Training set
+    :param model: Random Forest model
+    :param feature_names: Feature names for which PDP will be generated. Set 'All' to use all the features used for
+    model training.
+    :param outdir: Output directory for storing partial dependence plot
+    :param scaling: Set False if scaling is not used for the model
+    :param random_state: PRNG seed
+    :return: None
+    """
+
+    import matplotlib
+    matplotlib.use('Agg')
+    import matplotlib.pyplot as plt
+    print('Plotting PDP...')
+    matplotlib.rcParams.update({'font.size': 16})
+    feature_dict = {
+        'ppt': 'PRISM Precipitation',
+        'SSEBop': 'SSEBop ET',
+        'Relative_SSEBop': 'Relative SSEBop ET',
+        'SM_IDAHO': 'Soil Moisture Change',
+        'SWB_IRR': 'Irrigation Demand',
+        'HSG_INF': 'Infiltration Rate',
+        'tmax': r'PRISM Max Temperature',
+        'tmin': r'PRISM Min Temperature',
+        'tmean': r'PRISM Mean Temperature',
+        'RO':  'Surface Runoff',
+        'Latitude': r'Latitude',
+        'Longitude': r'Longitude',
+        'GW': 'Groundwater Use',
+        'Crop(s)_Corn': 'Corn',
+        'Crop(s)_Soybeans': 'Soybeans',
+        'Crop(s)_Cotton': 'Cotton',
+        'Crop(s)_Fish Culture': 'Aquaculture',
+        'Crop(s)_Rice': 'Rice'
+    }
+    pdp_feature_dict = {}
+    if 'All' in feature_names:
+        feature_names = x_train.columns
+    for feature in feature_dict.keys():
+        if not scaling:
+            if feature in ['tmax', 'tmin', 'tmean']:
+                unit = r'$^\circ$C'
+            elif feature in ['Latitude', 'Longitude']:
+                unit = r'$^\circ$'
+            elif feature == 'HSG_INF':
+                unit = 'mm/hr'
+            elif feature.startswith('Relative') or feature.startswith('Crop(s)'):
+                unit = 'Unitless'
+            else:
+                unit = 'mm'
+        else:
+            unit = 'Normalized'
+        feature_dict[feature] += ' ({})'.format(unit)
+        if feature in feature_names:
+            pdp_feature_dict[feature] = feature_dict[feature]
+    x_train = x_train.rename(columns=pdp_feature_dict)
+    feature_names = sorted(list(pdp_feature_dict.values()))
+    pdisp = PDisp.from_estimator(
+        model, X=x_train, features=feature_names,
+        n_jobs=-1, random_state=random_state,
+        subsample=0.8
+    )
+    for row_idx in range(pdisp.axes_.shape[0]):
+        pdisp.axes_[row_idx][0].set_ylabel(feature_dict['GW'])
+    pdisp.figure_.set_size_inches(30, 15)
+    plt.savefig(outdir + 'PDP.png', dpi=600)
