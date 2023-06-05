@@ -532,8 +532,8 @@ def extract_monthly_raster_val(raster_dir, year, month, data, lon, lat, src_crs=
     if data == 'CDL':
         new_coords = reproject_coords(src_crs, raster_crs, [[lon, lat]])
         lon_reproj, lat_reproj = new_coords[0]
-    raster_val = raster_file.sample([(lon_reproj, lat_reproj)], indexes=0)
-    return next(raster_val)
+    raster_val = raster_file.sample([(lon_reproj, lat_reproj)])
+    return next(raster_val)[0]
 
 
 def download_data(input_df, data_dir, year_list=None, lat_col='Latitude', lon_col='Longitude',
