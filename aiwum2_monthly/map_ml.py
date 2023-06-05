@@ -20,17 +20,18 @@
 # --input-rt-shp '../Data/RT/Realtime_WU_meter_site_2018–2021.shp' \
 # --input-rt-xls '../Data/RT/2__Real-time_WU_daily_values_2018–2021.xlsx' \
 # --field-shp-dir ../../HydroMAP_ML/USGS_MAP/permitted_boundaries/Shapefiles/ \
+# --vmp-csv ../Data/main/VMP_Readings_Latest_2014_2020.csv \
 # --load-files False \
 # --load-data False \
 # --load-model False \
 # --use-sub-cols True \
 # --sub-cols Year Month AF_Acre lat_dd long_dd crop \
-# --test-size 0.2 \
+# --test-size 0.1 \
 # --random-state 1234 \
 # --output-dir ../Outputs/ \
 # --model-dir ../Models/ \
 # --pred-attr AF_Acre \
-# --data-list SSEBop RO ppt tmax SWB_HSG SWB_IRR \
+# --data-list SSEBop SMOS_SMAP RO ppt tmax SWB_HSG SWB_IRR \
 # --gee-scale 1000 \
 # --prism-path ../../HydroMAP_ML/USGS_MAP/MAP_project/files_from_Jordan/AIWUM_input_datasets/PRISM/PRISM_800m/AN81/ \
 # --cdl-path ../../HydroMAP_ML/AIWUM2_Data/Inputs/CDL/ \
@@ -66,24 +67,25 @@
 # --input-rt-shp '../Data/RT/Realtime_WU_meter_site_2018–2021.shp' `
 # --input-rt-xls '../Data/RT/2__Real-time_WU_daily_values_2018–2021.xlsx' `
 # --field-shp-dir ../../HydroMAP_ML/USGS_MAP/permitted_boundaries/Shapefiles/ `
-# --load-files True `
-# --load-data True `
+# --vmp-csv ../../HydroMAP_ML/Data/main/VMP_Readings_Latest_2014_2020.csv `
+# --load-files False `
+# --load-data False `
 # --load-model False `
 # --use-sub-cols True `
 # --sub-cols Year Month AF_Acre lat_dd long_dd crop `
-# --test-size 0.25 `
-# --random-state 1234 `
+# --test-size 0.2 `
+# --random-state 42 `
 # --output-dir ../Outputs/ `
 # --model-dir ../Models/ `
 # --pred-attr AF_Acre `
-# --data-list SSEBop RO ppt tmax SWB_HSG SWB_IRR `
+# --data-list SSEBop SMOS_SMAP RO ppt tmax SWB_HSG SWB_IRR `
 # --gee-scale 1000 `
 # --prism-path ../../HydroMAP_ML/USGS_MAP/MAP_project/files_from_Jordan/AIWUM_input_datasets/PRISM/PRISM_800m/AN81/ `
 # --cdl-path ../../HydroMAP_ML/AIWUM2_Data/Inputs/CDL/ `
 # --lanid-path ../../HydroMAP_ML/AIWUM2_Data/Inputs/LANID/TIFs/ `
 # --nhd-path ../../HydroMAP_ML/AIWUM2_Data/Inputs/NHD/NHD_MAP_merged_nofish.shp `
 # --map-extent-file '../Data/RT/Realtime_WU_meter_site_2018–2021.shp' `
-# --train-year-list 2018 2019 2020 `
+# --train-year-list 2014 2015 2016 2017 2018 2019 2020 2021 `
 # --scaling True `
 # --split-strategy 2 `
 # --test-years 2020 `
@@ -93,17 +95,17 @@
 # --fold-count 5 `
 # --repeats 3 `
 # --gdal-path C:/OSGeo4W64/ `
-# --gee-files RO SM_IDAHO `
+# --gee-files RO SMOS_SMAP `
 # --prism-files ppt tmax `
 # --swb-files SWB_IRR SWB_HSG `
 # --load-pred-raster True `
 # --load-pred-csv True `
 # --load-map-extent True `
-# --pred-year-list 2018 2019 2020 `
+# --pred-year-list 2014 2015 2016 2017 2018 2019 2020 2021 `
 # --use-dask False `
 # --swb-data-path ../../HydroMAP_ML/USGS_MAP/SWB_Data/ `
 # --hsg-to-inf True `
-# --drop-attr Year Month `
+# --drop-attr Year Month Data `
 # --outlier-op 2 `
 # --pdp-plot-features All
 
@@ -137,6 +139,8 @@ def run_map_ml(args):
     dt_xls: Name of the date column in the XLS file
     state_list: List of states for model training
     field_shp_dir: Field polygon shapefile directory path (required for generating monthly rasters)
+    vmp_csv: VMP CSV file if both VMP and real-time data are to be merged after disaggregating the VMP data with
+    real-time weights
     load_files: Set True to load existing data sets
     load_data: Set to True to load already downloaded data
     load_model: Set True to load pre-built model
@@ -151,8 +155,7 @@ def run_map_ml(args):
     pred_attr: Prediction/target attribute name
     data_list: List of data sets to use/download. Valid names include 'SSEBop', 'SM_IDAHO', 'MOD16', 'SMOS_SMAP',
     'DROUGHT', 'PRISM', 'TMIN', 'TMAX', 'WS', 'RO', 'NDWI', 'SPH', 'DEF', 'VPD', 'VPD_SMAP', 'ppt', 'tmax', 'tmin',
-    'tmean', 'CDL', 'EEMETRIC', 'PT-JPL', 'SIMS', 'SWB_HSG', 'SWB_ET', 'SWB_PPT', 'SWB_INT', 'SWB_IRR', 'SWB_INF',
-    'SWB_RINF', 'SWB_RO', 'SWB_SS', 'SWB_MRD', 'SWB_SSM', 'SWB_AWC'
+    'tmean', 'CDL', 'SWB_HSG', 'SWB_IRR'
     Note: 'ppt', 'tmax', 'tmin', 'tmean' are for PRISM 800 m data, 'CDL' for USDA-NASS cropland data,
     'SWB*' for SWB products.
     gee_scale: Google Earth Engine scale (m) for downloading
@@ -160,12 +163,7 @@ def run_map_ml(args):
     cdl_path: Path to the 30 m CDL products. Required if CDL is in data-list
     lanid_path: Path to the annual LANID TIFs
     nhd_path: Path to the MAP NHD shapefile
-    openet_path: Path to the annual OpenET products. Required if OpenET is in data-list
-    eemetric_path: Path to the monthly EEMETRIC products. Required if EEMETRIC is in data-list
-    pt_jpl_path: Path to the monthly PT-JPL products. Required if PT-JPL is in data-list
-    sims_path: Path to the monthly SIMS products. Required if SIMS is in data-list
-    map_extent_file: Path to the MAP extent shapefile for handling OpenET, EEMETRIC, PT-JPL, and SIMS.
-    Required if any or all of OpenET, EEMETRIC, PT-JPL, and SIMS are in data-list
+    map_extent_file: Path to the MAP extent shapefile.
     stratified_kfold: Set True to use repeated stratified k-fold to generate stratified splits based on the crop type
     train_year_list: Years to use in the model
     scaling: Whether to perform feature scaling (automatically False if crop_models is True)
@@ -216,7 +214,8 @@ def run_map_ml(args):
         dt_xls=args.dt_xls,
         year_list=args.train_year_list,
         state_list=args.state_list,
-        load_csv=args.load_files
+        vmp_csv=args.vmp_csv,
+        load_csv=args.load_files,
     )
     monthly_df, file_dirs = prepare_data(
         monthly_df,
@@ -228,63 +227,59 @@ def run_map_ml(args):
         gee_scale=args.gee_scale,
         prism_data_path=args.prism_path,
         cdl_data_path=args.cdl_path,
-        openet_data_path=args.openet_path,
-        eemetric_data_path=args.eemetric_path,
-        pt_jpl_data_path=args.pt_jpl_path,
-        sims_data_path=args.sims_path,
         swb_data_path=args.swb_data_path,
         map_extent_file=args.map_extent_file,
         year_col=args.year_shp,
         lat_pump=args.lat_shp,
         lon_pump=args.lon_shp
     )
-    ret_vals = create_train_test_data(
-        monthly_df,
-        args.output_dir,
-        pred_attr=args.pred_attr,
-        drop_attr=args.drop_attr,
-        test_size=args.test_size,
-        random_state=args.random_state,
-        scaling=args.scaling,
-        already_created=args.load_map_csv,
-        year_col=args.year_shp,
-        crop_col=args.crop_shp,
-        year_list=args.train_year_list,
-        split_strategy=args.split_strategy,
-        test_year=args.test_years,
-        outlier_op=args.outlier_op,
-        hsg_to_inf=args.hsg_to_inf
-    )
-    x_train, x_test, y_train, y_test, x_scaler, y_scaler, year_train, year_test, crop_train, crop_test = ret_vals
-    stratify_labels = crop_train
-    if args.test_years:
-        stratify_labels = year_train
-    model = build_ml_model(
-        x_train, y_train, args.model_dir,
-        args.model_name, args.random_state,
-        args.load_model, args.fold_count,
-        args.repeats, y_scaler,
-        args.randomized_search,
-        args.stratified_kfold, args.use_dask,
-        stratify_labels=stratify_labels
-    )
-    pred_df = get_prediction_results(
-        model, x_train, x_test,
-        y_train, y_test, x_scaler,
-        y_scaler, year_train,
-        year_test, args.model_dir,
-        args.model_name, args.year_shp,
-        args.crop_shp, crop_train, crop_test
-    )
-    calc_train_test_metrics(pred_df)
-    if args.pdp_plot_features:
-        create_pdplots(
-            x_train, model,
-            args.pdp_plot_features,
-            args.output_dir,
-            args.scaling,
-            args.random_state
-        )
+    # ret_vals = create_train_test_data(
+    #     monthly_df,
+    #     args.output_dir,
+    #     pred_attr=args.pred_attr,
+    #     drop_attr=args.drop_attr,
+    #     test_size=args.test_size,
+    #     random_state=args.random_state,
+    #     scaling=args.scaling,
+    #     already_created=args.load_map_csv,
+    #     year_col=args.year_shp,
+    #     crop_col=args.crop_shp,
+    #     year_list=args.train_year_list,
+    #     split_strategy=args.split_strategy,
+    #     test_year=args.test_years,
+    #     outlier_op=args.outlier_op,
+    #     hsg_to_inf=args.hsg_to_inf
+    # )
+    # x_train, x_test, y_train, y_test, x_scaler, y_scaler, year_train, year_test, crop_train, crop_test = ret_vals
+    # stratify_labels = crop_train
+    # if args.test_years:
+    #     stratify_labels = year_train
+    # model = build_ml_model(
+    #     x_train, y_train, args.model_dir,
+    #     args.model_name, args.random_state,
+    #     args.load_model, args.fold_count,
+    #     args.repeats, y_scaler,
+    #     args.randomized_search,
+    #     args.stratified_kfold, args.use_dask,
+    #     stratify_labels=stratify_labels
+    # )
+    # pred_df = get_prediction_results(
+    #     model, x_train, x_test,
+    #     y_train, y_test, x_scaler,
+    #     y_scaler, year_train,
+    #     year_test, args.model_dir,
+    #     args.model_name, args.year_shp,
+    #     args.crop_shp, crop_train, crop_test
+    # )
+    # calc_train_test_metrics(pred_df)
+    # if args.pdp_plot_features:
+    #     create_pdplots(
+    #         x_train, model,
+    #         args.pdp_plot_features,
+    #         args.output_dir,
+    #         args.scaling,
+    #         args.random_state
+    #     )
     # pred_data_list = [dl for dl in args.data_list if dl not in args.drop_attr]
     # file_dirs = clean_file_dirs(
     #     file_dirs, args.drop_attr,
@@ -324,6 +319,9 @@ if __name__ == '__main__':
     parser.add_argument('--state-list', type=str, nargs='+', default=[], help='List of states for model training')
     parser.add_argument('--field-shp-dir', type=str, required=True,
                         help='Field polygon shapefile directory path (required for generating monthly rasters)')
+    parser.add_argument('--vmp-csv', type=str, default='',
+                        help='VMP CSV file if both VMP and real-time data are to be merged after disaggregating the '
+                             'VMP data with real-time weights')
     parser.add_argument('--load-files', type=boolean_string, default=True,
                         help='Set True to load existing data sets')
     parser.add_argument('--load-data', type=boolean_string, default=True,
@@ -342,9 +340,7 @@ if __name__ == '__main__':
     parser.add_argument('--data-list', type=str, nargs='+', required=True,
                         help="List of data sets to use/download. Valid names include 'SSEBop', 'SM_IDAHO', 'MOD16',"
                              " 'SMOS_SMAP', 'DROUGHT', 'PRISM', 'TMIN', 'TMAX', 'WS', 'RO', 'NDWI', 'SPH', 'DEF', "
-                             "'VPD', 'VPD_SMAP', 'ppt', 'tmax', 'tmin', 'tmean', 'CDL', 'EEMETRIC', 'PT-JPL', 'SIMS', "
-                             "'SWB_HSG', 'SWB_ET', 'SWB_PPT', 'SWB_INT', 'SWB_IRR', 'SWB_INF', 'SWB_RINF', 'SWB_RO', "
-                             "'SWB_SS', 'SWB_MRD', 'SWB_SSM', 'SWB_AWC'"
+                             "'VPD', 'VPD_SMAP', 'ppt', 'tmax', 'tmin', 'tmean', 'CDL', 'SWB_HSG',"
                              "Note: 'ppt', 'tmax', 'tmin', 'tmean' are for PRISM 800 m data, "
                              "'CDL' for USDA-NASS cropland data, 'SWB*' for SWB products")
     parser.add_argument('--gee-scale', type=int, default=1000, help='Google Earth Engine scale (m) for downloading')
@@ -356,17 +352,8 @@ if __name__ == '__main__':
     parser.add_argument('--lanid-path', type=str, default='',
                         help='Path to the 30 m LANID TIFs. Required for generating AIWUM 2 rasters')
     parser.add_argument('--nhd-path', type=str, default='', help='Path to the MAP NHD shapefile')
-    parser.add_argument('--openet-path', type=str, default='',
-                        help='Path to the annual OpenET products. Required if OpenET is in data-list')
-    parser.add_argument('--eemetric-path', type=str, default='',
-                        help='Path to the monthly EEMETRIC products. Required if EEMETRIC is in data-list')
-    parser.add_argument('--pt-jpl-path', type=str, default='',
-                        help='Path to the monthly PT-JPL products. Required if PT-JPL is in data-list')
-    parser.add_argument('--sims-path', type=str, default='',
-                        help='Path to the monthly SIMS products. Required if SIMS is in data-list')
     parser.add_argument('--map-extent-file', type=str, default='',
-                        help='Path to the MAP extent shapefile for handling OpenET, EEMETRIC, PT-JPL, and SIMS. '
-                             'Required if any or all of OpenET, EEMETRIC, PT-JPL, and SIMS are in data-list')
+                        help='Path to the MAP extent shapefile')
     parser.add_argument('--stratified-kfold', type=boolean_string, default=False,
                         help='Set True to use repeated stratified k-fold to generate stratified splits based on the '
                              'crop type')

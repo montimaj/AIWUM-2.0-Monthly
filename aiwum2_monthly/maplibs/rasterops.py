@@ -357,20 +357,27 @@ def generate_prism_stat_raster(prism_dir, output_file, op='sum', start_month=4, 
                  no_data_value=no_data_value)
 
 
-def reproject_coords(src_crs, dst_crs, coords):
+def reproject_coords(src_crs, dst_crs, coords=([], []), lat_long_list=False):
     """
     Reproject coordinates. Copied from https://bit.ly/3mBtowB
     Author: user2856 (StackExchange user)
     :param src_crs: Source CRS
     :param dst_crs: Destination CRS
-    :param coords: Coordinates as tuple of lists
-    :return: Transformed coordinates as tuple of lists
+    :param coords: Coordinates as tuple of lists where the list items are long, lat pairs
+    :param lat_long_list: If True then pass coords as ([long_list], [lat_list]) else pass coords as
+    ([long1, lat1], [long2, lat2], ... [longn,latn])
+    :return: Transformed coordinates as transformed long list and lat list (if lat_long_list=True) else as a list of
+    transformed long-lat pairs
     """
 
-    xs = [c[0] for c in coords]
-    ys = [c[1] for c in coords]
-    xs, ys = transform.transform(src_crs, dst_crs, xs, ys)
-    return [[x, y] for x, y in zip(xs, ys)]
+    if lat_long_list:
+        xs, ys = transform.transform(src_crs, dst_crs, coords[0], coords[1])
+        return xs, ys
+    else:
+        xs = [c[0] for c in coords]
+        ys = [c[1] for c in coords]
+        xs, ys = transform.transform(src_crs, dst_crs, xs, ys)
+        return [[x, y] for x, y in zip(xs, ys)]
 
 
 def get_swb_var_dicts(raster_dir, year):
@@ -462,6 +469,8 @@ def netcdf_to_tif(nc_file, year, month, output_dir, data_name):
                 end_day = 28
             else:
                 end_day = 29
+        if year > 2020:
+            year = 2020
         rds_data = rds.sel(
             time=slice(
                 '{}-{}-01'.format(year, month),

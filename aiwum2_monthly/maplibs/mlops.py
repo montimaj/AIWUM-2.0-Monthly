@@ -56,15 +56,15 @@ def get_model_param_dict(random_state=0, use_dask=False):
     }
 
     param_dict = {'LGBM': {
-        'n_estimators': [300, 400, 500],
-        'max_depth': [16, 20, -1],
-        'learning_rate': [0.01, 0.05],
-        'subsample': [1, 0.9],
-        'colsample_bytree': [1, 0.9],
-        'colsample_bynode': [1, 0.9],
-        'path_smooth': [0.1, 0.2],
-        'num_leaves': [31, 32],
-        'min_data_in_leaf': [30, 40]
+        'n_estimators': [1100, 1000],
+        'max_depth': [20, 31, -1],
+        'learning_rate': [0.001, 0.002, 0.008],
+        'subsample': [1],
+        'colsample_bytree': [1],
+        'colsample_bynode': [1],
+        'path_smooth': [0],
+        'num_leaves': [63, 127],
+        'min_data_in_leaf': [20, 30]
     }, 'DRF': {
         'n_estimators': [500],
         'max_depth': [8, -1],
@@ -77,11 +77,11 @@ def get_model_param_dict(random_state=0, use_dask=False):
         'min_data_in_leaf': [30],
     }, 'RF': {
         'n_estimators': [500],
-        'max_features': [10, 12, 8],
+        'max_features': [10, 12, 8, 9, 3],
         'max_depth': [8, None],
-        'max_leaf_nodes': [4, 8, None],
+        'max_leaf_nodes': [None],
         'max_samples': [None],
-        'min_samples_leaf': [1, 2, 3]
+        'min_samples_leaf': [3, 4, 5]
     }, 'ETR': {
         'n_estimators': [300, 400, 500],
         'max_features': [5, 6, 7],
@@ -180,7 +180,7 @@ def build_ml_model(x_train, y_train, model_dir, model_name='DRF', random_state=4
     :param model_name: ML model name as per the model_dict keys
     :param random_state: PRNG seed
     :param load_model: Set model name to load existing model
-    :param fold_count: Number of folds for KFold
+    :param fold_count: Number of folds for KFold. Performs LOOCV if <=0
     :param repeats: Number of repeats for KFold
     :param y_scaler: y scaler object
     :param randomized_search: Set True to use the more computationally efficient RandomizedSearchCV
@@ -242,10 +242,10 @@ def build_ml_model(x_train, y_train, model_dir, model_name='DRF', random_state=4
                 return_train_score=True
             )
         model_grid.fit(x_train, y_train)
+        pickle.dump(model, open(model_file, mode='wb+'))
         get_grid_search_stats(model_grid, y_scaler)
         model = model_grid.best_estimator_
         print('Best params: ', model_grid.best_params_)
-        pickle.dump(model, open(model_file, mode='wb+'))
         if dask_client:
             dask_client.close()
     else:

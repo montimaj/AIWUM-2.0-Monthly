@@ -260,7 +260,7 @@ def calculate_relative_et(input_df, crop_col):
 
 def create_monthly_wu_csv(rt_shp_file, rt_xls_file, output_dir, site_id_shp='Site_numbe', site_id_xls='site_no',
                           year_shp='Year', state_shp='State', acre_shp='combined_a', crop_shp='crop',
-                          dt_xls='datetime', year_list=(), state_list=(), load_csv=False):
+                          dt_xls='datetime', year_list=(), state_list=(), vmp_csv=None, load_csv=False):
     """
     Create total monthly water use CSV file from the real-time flowmeter shapefile and XLSX file.
     :param rt_shp_file: Real-time sites shapefile
@@ -275,6 +275,8 @@ def create_monthly_wu_csv(rt_shp_file, rt_xls_file, output_dir, site_id_shp='Sit
     :param dt_xls: Name of the date column in the XLS file
     :param year_list: Year list
     :param state_list: State list
+    :param vmp_csv: VMP CSV file if both VMP and real-time data are to be merged after disaggregating the VMP data with
+    real-time weights.
     :param load_csv: Load existing CSV
     :return List containing average monthly water use values
     """
@@ -317,6 +319,17 @@ def create_monthly_wu_csv(rt_shp_file, rt_xls_file, output_dir, site_id_shp='Sit
         rt_df_new = rt_df_new[rt_df_new[acre_shp] > 0]
         rt_df_new = rt_df_new.sort_values(by=[site_id_xls, year_shp, 'Month'])
         rt_df_new['AF_Acre'] = rt_df_new[rt_df_new.columns[2]] / rt_df_new[acre_shp]
+        rt_df_new['Data'] = 'RT'
+        if vmp_csv:
+            vmp_monthly = get_monthly_estimates(
+                vmp_csv,
+                rt_shp_file,
+                rt_xls_file,
+                year_shp,
+                crop_shp
+            )
+            vmp_monthly['Data'] = 'VMP'
+            rt_df_new = pd.concat([rt_df_new, vmp_monthly])
         rt_df_new.to_csv(map_monthly_csv, index=False)
     else:
         rt_df_new = pd.read_csv(map_monthly_csv)
@@ -493,6 +506,36 @@ def reindex_df(df, column_names, ordering=False):
     return df.reindex(column_names, axis=1)
 
 
+def extract_monthly_raster_val(raster_dir, year, month, data, lon, lat, src_crs='EPSG:4326'):
+    """
+    Extract pixel value from a monthly raster
+    :param raster_dir: Predictor data directory
+    :param year: Year
+    :param month: Month
+    :param data: Name of the predictor data
+    :param lon: Longitude in WGS84
+    :param lat: Latitude in WGS84
+    :param src_crs: Source raster CRS
+    :return: Extracted pixel value
+    """
+
+    raster_file_name = get_monthly_raster_file_names(raster_dir, year, month, data)
+    raster_arr, raster_file = read_raster_as_arr(
+        raster_file_name,
+        change_dtype=data.startswith('SWB')
+    )
+    if raster_file_name.endswith('.asc'):
+        raster_crs = 'EPSG:5070'
+    else:
+        raster_crs = raster_file.crs.to_string()
+    lon_reproj, lat_reproj = lon, lat
+    if data == 'CDL':
+        new_coords = reproject_coords(src_crs, raster_crs, [[lon, lat]])
+        lon_reproj, lat_reproj = new_coords[0]
+    py, px = raster_file.index(lon_reproj, lat_reproj)
+    return raster_arr[py, px]
+
+
 def download_data(input_df, data_dir, year_list=None, lat_col='Latitude', lon_col='Longitude',
                   year_col='Year', data_list=('MOD16', 'SSEBop'), gee_scale=1000, skip_download=False,
                   map_extent_file=None, get_dirs_only=False, **kwargs):
@@ -506,8 +549,7 @@ def download_data(input_df, data_dir, year_list=None, lat_col='Latitude', lon_co
     :param year_col: Name of the Year column
     :param data_list: List of data sets to download, valid names include 'SSEBop', 'SM_IDAHO', 'MOD16', 'SMOS_SMAP',
     'DROUGHT', 'PRISM', 'TMIN', 'TMAX', 'WS', 'RO', 'NDWI', 'SPH', 'DEF', 'VPD', 'VPD_SMAP', 'ppt', 'tmax', 'tmin',
-    'tmean', 'CDL', 'EEMETRIC', 'PT-JPL', 'SIMS', 'SWB_HSG', 'SWB_ET', 'SWB_PPT', 'SWB_INT', 'SWB_IRR', 'SWB_INF',
-    'SWB_RINF', 'SWB_RO', 'SWB_SS', 'SWB_MRD', 'SWB_SSM'
+    'tmean', 'CDL', 'SWB_HSG', 'SWB_IRR'
     Note: 'ppt', 'tmax', 'tmin', 'tmean' are for PRISM 800 m data, 'CDL' for USDA-NASS cropland data,
     'SWB*' for SWB products.
     :param gee_scale: GEE data scale in metres
@@ -515,40 +557,29 @@ def download_data(input_df, data_dir, year_list=None, lat_col='Latitude', lon_co
     :param map_extent_file: Set MAP shapefile or raster path to get extents from this shapefile.
     Otherwise, extent will be calculated  from the latitude and longitude of the input_csv
     :param get_dirs_only: Set True to get directories for pre-processed files
-    :param kwargs: Pass additional data paths such as prism_data_path, cdl_data_path, openet_data_path,
-    eemetric_data_path, pt_jpl_data_path, sims_data_path
+    :param kwargs: Pass additional data paths such as prism_data_path, cdl_data_path, swb_data_path
     :return: Modified input_df with downloaded data, tuple of data directories in the order of SSEBop, CDL, PRISM,
-    OpenET, EEMETRIC, PT-JPL, SIMS, GEE Files. If get_dirs_only is True then only the data paths are returned.
+    GEE Files, SWB. If get_dirs_only is True then only the data paths are returned.
     """
 
     gee_zip_dir = make_proper_dir_name(data_dir + 'GEE_Data')
     ssebop_zip_dir = make_proper_dir_name(data_dir + 'SSEBop_Data')
     gee_file_dir = make_proper_dir_name(gee_zip_dir + 'GEE_Files')
     ssebop_file_dir = make_proper_dir_name(ssebop_zip_dir + 'SSEBop_Files')
-    makedirs([gee_zip_dir, ssebop_zip_dir, gee_file_dir, ssebop_file_dir])
+    ml_csv_dir = make_proper_dir_name(data_dir + 'ML_CSV')
+    makedirs([gee_zip_dir, ssebop_zip_dir, gee_file_dir, ssebop_file_dir, ml_csv_dir])
     cdl_data_path = kwargs.get('cdl_data_path', '')
     prism_data_path = kwargs.get('prism_data_path', '')
-    openet_data_path = kwargs.get('openet_data_path', '')
-    eemetric_data_path = kwargs.get('eemetric_data_path', '')
-    pt_jpl_data_path = kwargs.get('pt_jpl_data_path', '')
-    sims_data_path = kwargs.get('sims_data_path', '')
     swb_data_path = kwargs.get('swb_data_path', '')
     data_paths = (
-        ssebop_file_dir, cdl_data_path, prism_data_path, openet_data_path,
-        eemetric_data_path, pt_jpl_data_path, sims_data_path, gee_file_dir,
+        ssebop_file_dir, cdl_data_path,
+        prism_data_path, gee_file_dir,
         swb_data_path
     )
     if get_dirs_only:
         return data_paths
-    src_crs = 'EPSG:4326'
-    local_et_data_path_dict = {
-        'OpenET': openet_data_path,
-        'EEMETRIC': eemetric_data_path,
-        'PT-JPL': pt_jpl_data_path,
-        'SIMS': sims_data_path,
-    }
-    local_et_products = list(local_et_data_path_dict.keys())
     gee_products = get_gee_dict(get_key_list=True)
+    src_crs = 'EPSG:4326'
     for data in data_list:
         if not skip_download:
             if data == 'SSEBop':
@@ -557,7 +588,7 @@ def download_data(input_df, data_dir, year_list=None, lat_col='Latitude', lon_co
             elif data in gee_products:
                 if map_extent_file:
                     if '.shp' in map_extent_file:
-                        data_extent = gpd.read_file(map_extent_file).to_crs('EPSG:4326').total_bounds.tolist()
+                        data_extent = gpd.read_file(map_extent_file).to_crs(src_crs).total_bounds.tolist()
                     else:
                         data_extent = get_raster_extent(map_extent_file, src_crs)
                 else:
@@ -571,46 +602,30 @@ def download_data(input_df, data_dir, year_list=None, lat_col='Latitude', lon_co
                     data, gee_scale
                 )
                 extract_data(gee_zip_dir, out_dir=gee_file_dir, rename_extracted_files=True)
-    for idx, row in input_df.iterrows():
-        year = int(row[year_col])
-        month = int(row['Month'])
-        lat = float(row[lat_col])
-        lon = float(row[lon_col])
-        for data in data_list:
-            raster_dir = ssebop_file_dir
-            if data in local_et_products:
-                if year >= 2016:
-                    raster_dir = local_et_data_path_dict[data]
-                else:
-                    raster_dir = ssebop_file_dir
-            elif data in ['ppt', 'tmax', 'tmin', 'tmean']:
-                raster_dir = prism_data_path
-            elif data in gee_products:
-                raster_dir = gee_file_dir
-            elif data == 'CDL':
-                raster_dir = cdl_data_path
-            elif data.startswith('SWB'):
-                raster_dir = swb_data_path
-            raster_file_name = get_monthly_raster_file_names(raster_dir, year, month, data)
-            raster_arr, raster_file = read_raster_as_arr(raster_file_name, change_dtype=data.startswith('SWB'))
-            if raster_file_name.endswith('.asc'):
-                raster_crs = 'EPSG:5070'
-            else:
-                raster_crs = raster_file.crs.to_string()
-            lon_reproj, lat_reproj = lon, lat
-            if data == 'CDL' or data.startswith('SWB'):
-                new_coords = reproject_coords(src_crs, raster_crs, [[lon, lat]])
-                lon_reproj, lat_reproj = new_coords[0]
-            py, px = raster_file.index(lon_reproj, lat_reproj)
-            raster_val = np.nan
-            try:
-                raster_val = raster_arr[py, px]
-                if np.isnan(raster_val):
-                    categorical = data == 'SWB_HSG'
-                    raster_val = get_ensemble_avg(raster_arr, (py, px), categorical=categorical)
-            except IndexError:
-                print('Index error occured for', raster_file_name)
-            input_df.loc[idx, data] = raster_val
+        raster_dir = ssebop_file_dir
+        if data in ['ppt', 'tmax', 'tmin', 'tmean']:
+            raster_dir = prism_data_path
+        elif data in gee_products:
+            raster_dir = gee_file_dir
+        elif data == 'CDL':
+            raster_dir = cdl_data_path
+        elif data.startswith('SWB'):
+            raster_dir = swb_data_path
+        input_df[data] = input_df.apply(
+            lambda row: extract_monthly_raster_val(
+                raster_dir,
+                row[year_col],
+                row.Month,
+                data,
+                row[lon_col],
+                row[lat_col],
+                src_crs
+            ), axis=1
+        )
+        input_df.to_csv(
+            f'{ml_csv_dir}ML_CSV_{data}.csv',
+            index=False
+        )
     input_df = reindex_df(input_df, column_names=None)
     return input_df, data_paths
 
@@ -1103,8 +1118,15 @@ def split_data_train_test_ratio(input_df, pred_attr='AF_Acre', shuffle=True, ran
     for svar in selection_var:
         selected_data = input_df.loc[input_df[selection_label] == svar]
         y = selected_data[pred_attr].to_frame()
-        x_train, x_test, y_train, y_test = train_test_split(selected_data, y, shuffle=shuffle,
-                                                            random_state=random_state, test_size=test_size)
+        if not shuffle:
+            stratify = None
+        else:
+            stratify = pd.qcut(y[pred_attr].tolist(), q=4, duplicates='drop')
+        x_train, x_test, y_train, y_test = train_test_split(
+            selected_data, y, shuffle=shuffle,
+            random_state=random_state, test_size=test_size,
+            stratify=stratify
+        )
         x_train_df = pd.concat([x_train_df, x_train])
         x_test_df = pd.concat([x_test_df, x_test])
         y_train_df = pd.concat([y_train_df, y_train])
@@ -1452,3 +1474,149 @@ def clean_file_dirs(file_dirs, drop_attrs, **kwargs):
             file_dirs.remove(drop_dict[attr])
     file_dirs = list(filter(lambda val: val != '', file_dirs))
     return file_dirs
+
+
+def get_monthly_weight_dict(rt_shp_file, rt_xls_file):
+    """
+    Calculate monthly weights for each crop
+    :param rt_shp_file: Real-time sites shapefile
+    :param rt_xls_file: Real-time XLS file containing site ids and daily water use
+    :return: Monthly weight dict
+    """
+    avg_wu = {
+        'Fish Culture': calculate_aquaculture_monthly_avg_wu(
+            rt_shp_file, rt_xls_file
+        ), 'Corn': [
+        np.nan,
+        np.nan,
+        np.nan,
+        1e-10,
+        0.480943768,
+        2.935120885,
+        2.959187198,
+        1.81353687,
+        0.285195862,
+        np.nan,
+        np.nan,
+        np.nan
+    ], 'Cotton': [
+        np.nan,
+        np.nan,
+        np.nan,
+        1e-10,
+        0.147144869,
+        0.106776469,
+        2.048001153,
+        1.889042786,
+        1.1928,
+        np.nan,
+        np.nan,
+        np.nan
+    ], 'Rice': [
+        np.nan,
+        np.nan,
+        np.nan,
+        1e-10,
+        2.634713034,
+        6.896929037,
+        7.547371072,
+        8.337695059,
+        3.684132039,
+        np.nan,
+        np.nan,
+        np.nan
+    ], 'Soybeans': [
+        np.nan,
+        np.nan,
+        np.nan,
+        1.81364E-06,
+        9.30566E-07,
+        1.136553566,
+        3.515970684,
+        3.381447538,
+        2.018117186,
+        np.nan,
+        np.nan,
+        np.nan
+    ]}
+    monthly_weight_dict = {}
+    for crop in avg_wu.keys():
+        wu_arr = np.array(avg_wu[crop])
+        wu_arr = wu_arr / np.nansum(wu_arr)
+        monthly_weight_dict[crop] = wu_arr.tolist()
+    return monthly_weight_dict
+
+
+def calculate_aquaculture_monthly_avg_wu(rt_shp_file, rt_xls_file, site_id_shp='Site_numbe', site_id_xls='site_no',
+                                         crop_shp='crop', year_shp='Year', state_shp='State', dt_xls='datetime',
+                                         year_list=range(2018, 2021)):
+    """
+    Calculate average monthly water use for aquaculture throughout the year instead of just the growing season
+    :param rt_shp_file: Real-time sites shapefile
+    :param rt_xls_file: Real-time XLS file containing site ids and daily water use
+    :param site_id_shp: Name of the Site ID field in the shapefile
+    :param site_id_xls: Name of the Site ID field in the XLS file
+    :param crop_shp: Name of the crop column in the shapefile
+    :param year_shp: Name of the year column in the shapefile
+    :param state_shp: Name of the state column in the shapefile
+    :param dt_xls: Name of the date column in the XLS file
+    :param year_list: Year list
+    :return List containing average monthly water use values
+    """
+
+    rt_gdf = gpd.read_file(rt_shp_file)
+    rt_df = pd.read_excel(rt_xls_file)
+    rt_df[site_id_xls] = rt_df[site_id_xls].astype(str)
+    rt_gdf = rt_gdf[rt_gdf[state_shp] == 'MS']
+    rt_gdf = rt_gdf[((rt_gdf[year_shp].isin(year_list)) & (rt_gdf[crop_shp].str.contains('fish', case=False)))]
+    rt_gdf[site_id_shp] = rt_gdf[site_id_shp].astype(str)
+    rt_gdf = rt_gdf.rename({site_id_shp: site_id_xls}, axis=1)
+    rt_df[dt_xls] = pd.to_datetime(rt_df[dt_xls])
+    rt_df = rt_df[rt_df[dt_xls].dt.year.isin(year_list)]
+    rt_df = rt_df[~rt_df.isin([np.nan, np.inf, -np.inf]).any(1)]
+    rt_df = rt_df[rt_df[rt_df.columns[2]] >= 0]
+    rt_df = rt_df.groupby([site_id_xls, pd.Grouper(key=dt_xls, freq="M")])[rt_df.columns[2]].mean().reset_index()
+    rt_df[year_shp] = rt_df[dt_xls].dt.year
+    rt_df_new = rt_df.merge(rt_gdf, on=[site_id_xls, year_shp])
+    rt_df_new['Month'] = rt_df_new[dt_xls].dt.month
+    rt_df_new = rt_df_new.sort_values(by=[site_id_xls, year_shp, 'Month'])
+    rt_df_new = rt_df_new[['Month', rt_df.columns[2]]]
+    monthly_avg_wu = rt_df_new.groupby('Month')[rt_df.columns[2]].mean().reset_index()
+    return monthly_avg_wu[rt_df.columns[2]].tolist()
+
+
+def get_monthly_estimates(vmp_csv, rt_shp_file, rt_xls_file, year_shp, crop_shp, target_attr='AF_Acre'):
+    """
+    Calculate monthly estimates from the annual VMP data
+    :param vmp_csv: VMP CSV file
+    :param rt_shp_file: Real-time sites shapefile
+    :param rt_xls_file: Real-time XLS file containing site ids and daily water use
+    :param year_shp: Name of the year column in rt_shp_file
+    :param crop_shp: Name of the crop column in rt_shp_file
+    :param target_attr: Attribute name of the water use column to disaggregate
+    :return: Monthly disaggregated VMP WU dataframe
+    """
+
+    vmp_df = pd.read_csv(vmp_csv)
+    crop_col = 'Crop(s)'
+    vmp_df[crop_col] = vmp_df[crop_col].apply(
+        lambda x: x.strip() if 'Soybean' not in x else 'Soybeans'
+    )
+    monthly_wt = get_monthly_weight_dict(
+        rt_shp_file, rt_xls_file,
+    )
+    vmp_df = vmp_df[vmp_df[crop_col].isin(monthly_wt.keys())]
+    output_df = pd.DataFrame()
+    for _, row in vmp_df.iterrows():
+        vmp_monthly_df = pd.DataFrame()
+        crop = row[crop_col]
+        wu = row[target_attr]
+        vmp_monthly_df[target_attr] = [wu * wt for wt in monthly_wt[crop]]
+        vmp_monthly_df['Month'] = list(range(1, 13))
+        vmp_monthly_df[crop_shp] = crop
+        vmp_monthly_df['lat_dd'] = row['Latitude']
+        vmp_monthly_df['long_dd'] = row['Longitude']
+        vmp_monthly_df[year_shp] = row['ReportYear']
+        output_df = pd.concat([output_df, vmp_monthly_df])
+    output_df = output_df.dropna()
+    return output_df
