@@ -1247,9 +1247,12 @@ def convert_hsg_to_inf(input_df, drop_hsg=True, hsg_col='SWB_HSG'):
     :param input_df: Cleaned input data frame containing hsg_col column
     :param drop_hsg: Set False to disable dropping HSG column. If False HSG_INF column won't be created
     :param hsg_col: Name of the HSG column
+    :return Modified data frame and flag set to True or False (whether hsg_col is present or not)
     """
 
+    is_hsg = False
     if hsg_col in input_df.columns:
+        is_hsg = True
         input_df[hsg_col] = input_df[hsg_col].apply(lambda x: x if x <= 4 else x - 4)
         if drop_hsg:
             inf_dict = {
@@ -1260,7 +1263,7 @@ def convert_hsg_to_inf(input_df, drop_hsg=True, hsg_col='SWB_HSG'):
             }
             input_df['HSG_INF'] = input_df[hsg_col].apply(lambda x: np.nan if np.isnan(x) else inf_dict[x])
             input_df = input_df.drop(columns=[hsg_col])
-    return input_df
+    return input_df, is_hsg
 
 
 def create_train_test_data(input_df, output_dir, pred_attr='AF_Acre', drop_attr=('ReportYear',), test_size=0.2,
@@ -1330,7 +1333,7 @@ def create_train_test_data(input_df, output_dir, pred_attr='AF_Acre', drop_attr=
         if outlier_op is not None:
             input_df = process_outliers(input_df, pred_attr, crop_col, year_col, outlier_op)
         input_df = convert_to_mm(input_df, pred_attr)
-        input_df = convert_hsg_to_inf(input_df, drop_hsg=hsg_to_inf)
+        input_df, is_hsg = convert_hsg_to_inf(input_df, drop_hsg=hsg_to_inf)
         input_df.to_csv(output_dir + 'Cleaned_MAP_GW_Data.csv', index=False)
         x_train, x_test, y_train, y_test = split_data_train_test(
             input_df, pred_attr=pred_attr,
@@ -1351,7 +1354,7 @@ def create_train_test_data(input_df, output_dir, pred_attr='AF_Acre', drop_attr=
         if (not crop_models) and (not crop_flag):
             x_train = pd.get_dummies(x_train, columns=[crop_col])
             x_test = pd.get_dummies(x_test, columns=[crop_col])
-        if not hsg_to_inf:
+        if is_hsg and (not hsg_to_inf):
             x_train = pd.get_dummies(x_train, columns=['SWB_HSG'])
             x_test = pd.get_dummies(x_test, columns=['SWB_HSG'])
         x_train = reindex_df(x_train, column_names=None)

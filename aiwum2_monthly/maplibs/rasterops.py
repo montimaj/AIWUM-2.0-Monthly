@@ -469,8 +469,6 @@ def netcdf_to_tif(nc_file, year, month, output_dir, data_name):
                 end_day = 28
             else:
                 end_day = 29
-        if year > 2020:
-            year = 2020
         rds_data = rds.sel(
             time=slice(
                 '{}-{}-01'.format(year, month),

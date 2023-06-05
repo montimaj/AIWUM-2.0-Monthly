@@ -42,7 +42,7 @@ def get_model_param_dict(random_state=0, use_dask=False):
         ),
         'DRF': LGBMRegressor(
             boosting_type='rf', tree_learner='feature',
-            bagging_freq=1, random_state=random_state,
+            subsample_freq=1, random_state=random_state,
             deterministic=True, force_row_wise=True
         ),
         'RF': RandomForestRegressor(random_state=random_state, n_jobs=n_jobs),
@@ -56,32 +56,32 @@ def get_model_param_dict(random_state=0, use_dask=False):
     }
 
     param_dict = {'LGBM': {
-        'n_estimators': [1100, 1000],
-        'max_depth': [20, 31, -1],
-        'learning_rate': [0.001, 0.002, 0.008],
+        'n_estimators': [500],
+        'max_depth': [-1],
+        'learning_rate': [0.03],
         'subsample': [1],
         'colsample_bytree': [1],
         'colsample_bynode': [1],
         'path_smooth': [0],
-        'num_leaves': [63, 127],
-        'min_data_in_leaf': [20, 30]
+        'num_leaves': [127],
+        'min_child_samples': [10]
     }, 'DRF': {
         'n_estimators': [500],
-        'max_depth': [8, -1],
+        'max_depth': [12, -1],
         'learning_rate': [1e-4],
-        'bagging_fraction': [0.8],
-        'feature_fraction': [0.8],
-        'lambda_l2': [0, 0.1],
-        'path_smooth': [0, 0.1],
-        'num_leaves': [100],
-        'min_data_in_leaf': [30],
+        'subsample': [0.99],
+        'colsample_bytree': [1.0],
+        'reg_lambda': [0],
+        'path_smooth': [0],
+        'num_leaves': [200],
+        'min_child_samples': [30],
     }, 'RF': {
         'n_estimators': [500],
-        'max_features': [10, 12, 8, 9, 3],
-        'max_depth': [8, None],
+        #'max_features': [10, 12, 8, 9, 3],
+        'max_depth': [14],
         'max_leaf_nodes': [None],
         'max_samples': [None],
-        'min_samples_leaf': [3, 4, 5]
+        'min_samples_leaf': [2]
     }, 'ETR': {
         'n_estimators': [300, 400, 500],
         'max_features': [5, 6, 7],

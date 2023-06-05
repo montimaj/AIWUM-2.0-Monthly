@@ -31,7 +31,7 @@
 # --output-dir ../Outputs/ \
 # --model-dir ../Models/ \
 # --pred-attr AF_Acre \
-# --data-list SSEBop SMOS_SMAP RO ppt tmax SWB_HSG SWB_IRR \
+# --data-list SSEBop SMOS_SMAP RO ppt tmax \
 # --gee-scale 1000 \
 # --prism-path ../../HydroMAP_ML/USGS_MAP/MAP_project/files_from_Jordan/AIWUM_input_datasets/PRISM/PRISM_800m/AN81/ \
 # --cdl-path ../../HydroMAP_ML/AIWUM2_Data/Inputs/CDL/ \
@@ -57,8 +57,6 @@
 # --load-map-extent True \
 # --pred-year-list 2018 2019 2020 \
 # --use-dask False \
-# --swb-data-path ../../HydroMAP_ML/USGS_MAP/SWB_Data/ \
-# --hsg-to-inf True \
 # --drop-attr Year Month \
 # --pdp-plot-features All
 #
@@ -68,8 +66,8 @@
 # --input-rt-xls '../Data/RT/2__Real-time_WU_daily_values_2018–2021.xlsx' `
 # --field-shp-dir ../../HydroMAP_ML/USGS_MAP/permitted_boundaries/Shapefiles/ `
 # --vmp-csv ../../HydroMAP_ML/Data/main/VMP_Readings_Latest_2014_2020.csv `
-# --load-files False `
-# --load-data False `
+# --load-files True `
+# --load-data True `
 # --load-model False `
 # --use-sub-cols True `
 # --sub-cols Year Month AF_Acre lat_dd long_dd crop `
@@ -78,7 +76,7 @@
 # --output-dir ../Outputs/ `
 # --model-dir ../Models/ `
 # --pred-attr AF_Acre `
-# --data-list SSEBop SMOS_SMAP RO ppt tmax SWB_HSG SWB_IRR `
+# --data-list SM_IDAHO RO ppt tmax SSEBop `
 # --gee-scale 1000 `
 # --prism-path ../../HydroMAP_ML/USGS_MAP/MAP_project/files_from_Jordan/AIWUM_input_datasets/PRISM/PRISM_800m/AN81/ `
 # --cdl-path ../../HydroMAP_ML/AIWUM2_Data/Inputs/CDL/ `
@@ -90,22 +88,19 @@
 # --split-strategy 2 `
 # --test-years 2020 `
 # --load-map-csv False `
-# --model-name RF `
+# --model-name LR `
 # --randomized-search False `
-# --fold-count 5 `
+# --fold-count 10 `
 # --repeats 3 `
 # --gdal-path C:/OSGeo4W64/ `
 # --gee-files RO SMOS_SMAP `
 # --prism-files ppt tmax `
-# --swb-files SWB_IRR SWB_HSG `
-# --load-pred-raster True `
-# --load-pred-csv True `
-# --load-map-extent True `
+# --load-pred-raster False `
+# --load-pred-csv False `
+# --load-map-extent False `
 # --pred-year-list 2014 2015 2016 2017 2018 2019 2020 2021 `
 # --use-dask False `
-# --swb-data-path ../../HydroMAP_ML/USGS_MAP/SWB_Data/ `
-# --hsg-to-inf True `
-# --drop-attr Year Month Data `
+# --drop-attr Year Month `
 # --outlier-op 2 `
 # --pdp-plot-features All
 
@@ -233,45 +228,45 @@ def run_map_ml(args):
         lat_pump=args.lat_shp,
         lon_pump=args.lon_shp
     )
-    # ret_vals = create_train_test_data(
-    #     monthly_df,
-    #     args.output_dir,
-    #     pred_attr=args.pred_attr,
-    #     drop_attr=args.drop_attr,
-    #     test_size=args.test_size,
-    #     random_state=args.random_state,
-    #     scaling=args.scaling,
-    #     already_created=args.load_map_csv,
-    #     year_col=args.year_shp,
-    #     crop_col=args.crop_shp,
-    #     year_list=args.train_year_list,
-    #     split_strategy=args.split_strategy,
-    #     test_year=args.test_years,
-    #     outlier_op=args.outlier_op,
-    #     hsg_to_inf=args.hsg_to_inf
-    # )
-    # x_train, x_test, y_train, y_test, x_scaler, y_scaler, year_train, year_test, crop_train, crop_test = ret_vals
-    # stratify_labels = crop_train
-    # if args.test_years:
-    #     stratify_labels = year_train
-    # model = build_ml_model(
-    #     x_train, y_train, args.model_dir,
-    #     args.model_name, args.random_state,
-    #     args.load_model, args.fold_count,
-    #     args.repeats, y_scaler,
-    #     args.randomized_search,
-    #     args.stratified_kfold, args.use_dask,
-    #     stratify_labels=stratify_labels
-    # )
-    # pred_df = get_prediction_results(
-    #     model, x_train, x_test,
-    #     y_train, y_test, x_scaler,
-    #     y_scaler, year_train,
-    #     year_test, args.model_dir,
-    #     args.model_name, args.year_shp,
-    #     args.crop_shp, crop_train, crop_test
-    # )
-    # calc_train_test_metrics(pred_df)
+    ret_vals = create_train_test_data(
+        monthly_df,
+        args.output_dir,
+        pred_attr=args.pred_attr,
+        drop_attr=args.drop_attr,
+        test_size=args.test_size,
+        random_state=args.random_state,
+        scaling=args.scaling,
+        already_created=args.load_map_csv,
+        year_col=args.year_shp,
+        crop_col=args.crop_shp,
+        year_list=args.train_year_list,
+        split_strategy=args.split_strategy,
+        test_year=args.test_years,
+        outlier_op=args.outlier_op,
+        hsg_to_inf=args.hsg_to_inf
+    )
+    x_train, x_test, y_train, y_test, x_scaler, y_scaler, year_train, year_test, crop_train, crop_test = ret_vals
+    stratify_labels = crop_train
+    if args.test_years:
+        stratify_labels = year_train
+    model = build_ml_model(
+        x_train, y_train, args.model_dir,
+        args.model_name, args.random_state,
+        args.load_model, args.fold_count,
+        args.repeats, y_scaler,
+        args.randomized_search,
+        args.stratified_kfold, args.use_dask,
+        stratify_labels=stratify_labels
+    )
+    pred_df = get_prediction_results(
+        model, x_train, x_test,
+        y_train, y_test, x_scaler,
+        y_scaler, year_train,
+        year_test, args.model_dir,
+        args.model_name, args.year_shp,
+        args.crop_shp, crop_train, crop_test
+    )
+    calc_train_test_metrics(pred_df)
     # if args.pdp_plot_features:
     #     create_pdplots(
     #         x_train, model,
@@ -284,10 +279,7 @@ def run_map_ml(args):
     # file_dirs = clean_file_dirs(
     #     file_dirs, args.drop_attr,
     #     cdl_data_path=args.cdl_path,
-    #     openet_data_path=args.openet_path,
-    #     eemetric_data_path=args.eemetric_path,
-    #     pt_jpl_data_path=args.pt_jpl_path,
-    #     sims_data_path=args.sims_path
+
     # )
     # _, pred_wu_dir, map_extent_raster_dir = create_prediction_map(
     #     model, args.map_extent_file, file_dirs,
@@ -399,7 +391,7 @@ if __name__ == '__main__':
                         help='Set True to load existing MAP extent rasters, required if compare-aiwums is True')
     parser.add_argument('--pred-year-list', type=int, nargs='+', required=True, help='Years to predict')
     parser.add_argument('--use-dask', type=boolean_string, default=True, help='Set False to disable Dask')
-    parser.add_argument('--swb-data-path', type=str, required=True, help='Path to SWB data')
+    parser.add_argument('--swb-data-path', type=str, required=False, help='Path to SWB data')
     parser.add_argument('--hsg-to-inf', type=boolean_string, default=True,
                         help='Set False to disable creating the infiltration rate column based on the HSGs. '
                              'Only works when SWB_HSG is present in --data-list')
