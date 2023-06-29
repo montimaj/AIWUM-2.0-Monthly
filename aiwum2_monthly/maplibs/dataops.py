@@ -1,6 +1,7 @@
 """
 Provides methods for different data operations required for the MAP project.
 """
+import calendar
 
 # Author: Sayantan Majumdar
 # Email: sayantan.majumdar@dri.edu
@@ -14,6 +15,7 @@ import requests
 import zipfile
 import os
 import swifter
+import calendar
 import numpy as np
 import matplotlib.pyplot as plt
 import pickle
@@ -929,6 +931,7 @@ def create_map_prediction_rasters(
             num_features = pred_arr.shape[1]
             month_pos = pred_df_file.rfind('_')
             month = pred_df_file[month_pos + 1: pred_df_file.rfind('.')]
+            month = calendar.month_abbr[int(month)]
             year = pred_df_file[month_pos - 4: month_pos]
             map_extent_raster_arr, map_extent_raster_file = map_extent_raster_dict[int(year)]
             for feature in range(num_features):
@@ -1032,7 +1035,7 @@ def create_map_prediction_csv(
         for year in year_list:
             cdl_arr, cdl_file = map_extent_raster_dict[year]
             for month in range(data_start_month, data_end_month + 1):
-                pred_df_file = f'{pred_csv_dir}Pred_{year}_{month}.csv'
+                pred_df_file = f'{pred_csv_dir}Pred_{year}_{calendar.month_abbr[month]}.csv'
                 print('Creating', pred_df_file, '...')
                 pred_df = pd.DataFrame()
                 if verbose:
