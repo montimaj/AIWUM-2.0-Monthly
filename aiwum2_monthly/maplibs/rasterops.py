@@ -755,10 +755,7 @@ def correct_cdl_rasters(
     lanid_100m_tifs = []
     field_100m_tifs = []
     for year in year_list:
-        try:
-            cdl_file = glob(f'{input_cdl_dir}*/{year}*.{cdl_ext}', recursive=True)[0]
-        except IndexError:
-            cdl_file = glob(f'{input_cdl_dir}*/{year}*.tif', recursive=True)[0]
+        cdl_file = glob(f'{input_cdl_dir}*/{year}*.{cdl_ext}', recursive=True)[0]
         cdl_file_name = cdl_file[cdl_file.rfind(os.sep) + 1: cdl_file.rfind('.')].replace('30m', '100m')
         cdl_100m_tif = f'{output_dir}{cdl_file_name}.tif'
         cdl_100m_tifs.append(cdl_100m_tif)
