@@ -1589,7 +1589,7 @@ def create_train_test_data(
         if year_col in drop_attr:
             drop_attr.remove(year_col)
         input_df = input_df.drop(columns=drop_attr)
-        input_df = input_df.replace([np.inf, -np.inf], np.nan).dropna(axis=1)
+        input_df = input_df.replace([np.inf, -np.inf], np.nan).dropna()
         if year_list and year_col in input_df.columns:
             input_df = input_df[input_df[year_col].isin(year_list)]
         if outlier_op is not None:
