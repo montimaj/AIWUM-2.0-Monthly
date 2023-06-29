@@ -931,7 +931,6 @@ def create_map_prediction_rasters(
             num_features = pred_arr.shape[1]
             month_pos = pred_df_file.rfind('_')
             month = pred_df_file[month_pos + 1: pred_df_file.rfind('.')]
-            month = calendar.month_abbr[int(month)]
             year = pred_df_file[month_pos - 4: month_pos]
             map_extent_raster_arr, map_extent_raster_file = map_extent_raster_dict[int(year)]
             for feature in range(num_features):

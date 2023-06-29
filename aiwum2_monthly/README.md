@@ -108,7 +108,7 @@ python map_ml.py \
 --field-shp-dir ../AIWUM2_Data/Inputs/Permitted_Boundaries/Shapefiles/ \
 --load-files True \
 --load-data True \
---load-model False \
+--load-model True \
 --data-list SSEBop SM_IDAHO ppt tmax RO \
 --prism-path ../AIWUM2_Data/Inputs/PRISM/PRISM_800m/AN81/ \
 --cdl-path ../AIWUM2_Data/Inputs/CDL/ \
@@ -118,7 +118,7 @@ python map_ml.py \
 --map-extent-file ../AIWUM2_Data/Inputs/Model_Extent/Model_Extent.shp \
 --train-year-list 2014 2015 2016 2017 2018 2019 2020 2021 \
 --pred-year-list 2014 2015 2016 2017 2018 2019 2020 2021 \
---load-map-csv False \
+--load-map-csv True \
 --load-pred-raster False \
 --load-pred-file True \
 --load-map-extent True \
