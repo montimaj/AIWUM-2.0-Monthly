@@ -98,15 +98,15 @@ def get_model_param_dict(
     }, 'ETR': {
         'n_estimators': [300, 400, 500],
         'max_features': [5, 6, 7],
-        'max_depth': [6, 10, None],
+        'max_depth': [8, 15, 20, None],
         'max_samples': [None, 0.9, 0.8, 0.7],
-        'min_samples_leaf': [1, 5e-4, 1e-5]
+        'min_samples_leaf': [1, 2]
     }, 'DT': {
         'max_features': [5, 6, 7],
         'max_depth': [6, 10, 20, None],
         'min_samples_leaf': [1, 5e-4, 1e-5]
     }, 'BT': {
-        'n_estimators': [300, 400, 500],
+        'n_estimators': [400, 500],
         'max_features': [5, 6, 7],
         'max_samples': [1, 0.9, 0.8]
     }, 'ABR': {
@@ -114,13 +114,13 @@ def get_model_param_dict(
         'learning_rate': [0.005, 0.0098, 0.01, 0.05],
         'loss': ['linear', 'square']
     }, 'KNN': {
-        'n_neighbors': [5, 8, 10],
+        'n_neighbors': [5, 8],
         'weights': ['uniform', 'distance'],
-        'leaf_size': [30, 50, 20],
-        'p': [1, 2, 3, 5],
+        'leaf_size': [30, 50],
+        'p': [1, 3],
     }, 'SVR': {
         'C': [1, 1.5, 2],
-        'max_iter': [1000, 2000],
+        'max_iter': [3000, 5000],
         'loss': ['epsilon_insensitive', 'squared_epsilon_insensitive']
     }, 'LR': {
     }}

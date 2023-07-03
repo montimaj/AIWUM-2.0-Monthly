@@ -38,11 +38,18 @@ The figure below shows the general processing workflow.
 Note that for 2021, we use the 2020 LANID TIF file and the 2020 permitted boundaries shapefile.
 
 In this study, we use Gradient Boosting Machine (GBM) to solve a multi-variate regression problem wherein our target is to predict the monthly groundwater use across the MISE from 2014-2021. The model prediction results are shown [here](Outputs/LGBM_Results.rtf). Note that compared to the AIWUM 2.0 model, the test R2 is higher with lower RMSE and MAE. This is because the disaggregated data using the real-time weights have consistent weights for each month and thus, the model is able to provide better results.
-Here we used the [LightGBM](https://lightgbm.readthedocs.io/en/v3.3.5/) ([Ke et al., 2017](https://proceedings.neurips.cc/paper/2017/file/6449f44a102fde848669bdd9eb6b76fa-Paper.pdf)) Python library to implement the AIWUM 2 model and compared its performance against other algorithms, e.g., Distributed Random Forests, Support Vector Machine, Extremely Randomized Trees, etc. The model comparison is shown below.
+Here we used the [LightGBM](https://lightgbm.readthedocs.io/en/v3.3.5/) ([Ke et al., 2017](https://proceedings.neurips.cc/paper/2017/file/6449f44a102fde848669bdd9eb6b76fa-Paper.pdf)) Python library to implement the AIWUM 2 model and compared its performance against other algorithms, e.g., Distributed Random Forests (DRF), Support Vector Machine (SVM), Extremely Randomized Trees (ERT), Bagging Trees (BT), k-Nearest Neighbors (KNN), and Multiple Linear Regression (MLR). The model comparison is shown below where the metrics are rounded to 3 decimal places.
 
-| Model   | Train R2 | Train RMSE (m) | Train MAE (m) | Test R2 | Test RMSE (m) | Test MAE (m) |
-|---------|----------|----------------|---------------|---------|---------------|--------------|
-| **GBM** | 0.831    | 16.988         | 10.376        | 0.726   | 21.619        | 12.652       |
+| Model   | Train R2  | Train RMSE (mm) | Train MAE (mm) | Test R2   | Test RMSE (mm) | Test MAE (mm) |
+|---------|-----------|-----------------|----------------|-----------|----------------|---------------|
+| **GBM** | **0.831** | **16.988**      | **10.376**     | **0.726** | **21.619**     | **12.652**    |
+| DRF     | 0.658     | 24.715          | 15.528         | 0.639     | 24.817         | 14.881        |
+| RF      | 0.546     | 28.343          | 18.665         | 0.548     | 27.774         | 18.239        |
+| ETR     | 0.728     | 21.66           | 13.268         | 0.657     | 24.201         | 13.88         |
+| BT      |
+| SVM     | 0.429     | 31.795          | 21.308         | 0.45      | 30.651         | 21.268        |
+| KNN     |
+| MLR     | 0.449     | 31.218          | 21.65          | 0.45      | 30.653         | 21.271        |
 
 
 ## AIWUM 1.1 vs 2.1 Comparison
@@ -50,13 +57,15 @@ Here we used the [LightGBM](https://lightgbm.readthedocs.io/en/v3.3.5/) ([Ke et 
 | **2014**                                                             | **2015**                                                             | **2016**                                                             |
 |----------------------------------------------------------------------|----------------------------------------------------------------------|----------------------------------------------------------------------|
 | ![preview](Outputs/AIWUM_Comparison/AIWUM_Total_Comparison_2014.png) | ![preview](Outputs/AIWUM_Comparison/AIWUM_Total_Comparison_2015.png) | ![preview](Outputs/AIWUM_Comparison/AIWUM_Total_Comparison_2016.png) |
-| **2017**                                                             | **2018**                                                             | **2019**                                                             |
+| <center>**2017**</center>                                            | <center>**2018**</center>                                            | <center>**2019**</center>                                            |
 | ![preview](Outputs/AIWUM_Comparison/AIWUM_Total_Comparison_2017.png) | ![preview](Outputs/AIWUM_Comparison/AIWUM_Total_Comparison_2018.png) | ![preview](Outputs/AIWUM_Comparison/AIWUM_Total_Comparison_2019.png) |
 
 
 Here, we show the AIWUM 1.1 and 2.1 total growing season (Apr-Oct) water use rasters along with the difference map for 2019.
 
-<img src="Readme_Figures/AIWUM1-1_GS_Total_2019.png" height="500" /> <img src="Readme_Figures/AIWUM2-1_GS_Total_2019.png" height="500" />  <img src="Readme_Figures/Diff_GS_Total_2019.png" height="500" />
+| **AIWUM 1.1**                                          | **AIWUM 2.1**                                          | **Difference Map**                                 |
+|--------------------------------------------------------|--------------------------------------------------------|----------------------------------------------------|
+| ![preview](Readme_Figures/AIWUM1-1_GS_Total_2019.png)  | ![preview](Readme_Figures/AIWUM2-1_GS_Total_2019.png)  | ![preview](Readme_Figures/Diff_GS_Total_2019.png)  |
 
 ## Getting Started
 
