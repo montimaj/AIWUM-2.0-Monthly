@@ -1,7 +1,6 @@
 """
 Provides methods for different data operations required for the MAP project.
 """
-import calendar
 
 # Author: Sayantan Majumdar
 # Email: sayantan.majumdar@dri.edu
@@ -16,7 +15,6 @@ import zipfile
 import os
 import swifter
 import calendar
-import datetime
 import numpy as np
 import matplotlib.pyplot as plt
 import pickle

@@ -95,6 +95,7 @@ python map_ml.py \
 --load-pred-file <True/False> \
 --load-map-extent <True/False> \
 --model-name <model-name> \
+--randomized-search <True/False> \
 --compare-aiwums <True/False> \
 --aiwum1-monthly-tot-dir <aiwum1-monthly-dir-path>
 ```
@@ -123,6 +124,7 @@ python map_ml.py \
 --load-pred-file True \
 --load-map-extent True \
 --model-name LGBM \
+--randomized-search True \
 --compare-aiwums True \
 --aiwum1-monthly-tot-dir ../AIWUM2_Data/Inputs/AIWUM1-1_Monthly_total/
 ```
@@ -152,6 +154,7 @@ python map_ml.py `
 --load-pred-file <True/False> `
 --load-map-extent <True/False> `
 --model-name <model-name> `
+--randomized-search <True/False> `
 --compare-aiwums <True/False> `
 --aiwum1-monthly-tot-dir <aiwum1-dir-path>
 ```
@@ -180,6 +183,7 @@ python map_ml.py `
 --load-pred-file False `
 --load-map-extent False `
 --model-name LGBM `
+--randomized-search True `
 --compare-aiwums True `
 --aiwum1-monthly-tot-dir ../AIWUM2_Data/Inputs/AIWUM1-1_Monthly_total/
 ```
@@ -283,7 +287,7 @@ options:
   --model-name MODEL_NAME
                         Set model name. Valid names include 'LGBM', 'DRF', 'RF', 'ETR', 'DT', 'BT', 'ABR', 'KNN', 'LR' (default: DRF)
   --randomized-search RANDOMIZED_SEARCH
-                        Set False to use the exhaustive GridSearchCV (default: True)
+                        Set False to use the exhaustive GridSearchCV (default: False)
   --fold-count FOLD_COUNT
                         Number of folds for kFold (default: 5)
   --repeats REPEATS     Number of repeats for kFold (default: 3)

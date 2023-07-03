@@ -79,42 +79,44 @@ def get_model_param_dict(
         'num_leaves': [127, 256],
         'min_child_samples': [20, 30, 40]
     }, 'DRF': {
-        'n_estimators': [400, 500, 600],
-        'max_depth': [16, 20, 32, -1],
+        'n_estimators': [500, 800],
+        'max_depth': [16, 20, -1],
         'learning_rate': [1e-4],
-        'subsample': [0.8, 0.5],
+        'subsample': [0.9, 0.5],
         'colsample_bytree': [0.8, 0.9],
+        'colsample_bynode': [1, 0.9],
         'reg_lambda': [0, 0.1],
         'path_smooth': [0, 0.1],
-        'num_leaves': [100, 150, 200],
-        'min_child_samples': [25, 28, 30],
+        'num_leaves': [127, 256],
+        'min_child_samples': [20, 30, 40],
     }, 'RF': {
-        'n_estimators': [300, 400, 500],
-        'max_features': [5, 6, 7],
-        'max_depth': [8, 15, 20, None],
-        'max_leaf_nodes': [16, 20],
-        'max_samples': [None, 0.9, 0.8, 0.7],
-        'min_samples_leaf': [1, 2]
+        'n_estimators': [500],
+        'max_features': [None],
+        'max_depth': [None],
+        'max_leaf_nodes': [None],
+        'max_samples': [None],
+        'min_samples_leaf': [5, 6, 7]
     }, 'ETR': {
-        'n_estimators': [300, 400, 500],
-        'max_features': [5, 6, 7],
-        'max_depth': [8, 15, 20, None],
-        'max_samples': [None, 0.9, 0.8, 0.7],
-        'min_samples_leaf': [1, 2]
+        'n_estimators': [500],
+        'max_features': [None],
+        'max_depth': [None],
+        'max_leaf_nodes': [None],
+        'max_samples': [None],
+        'min_samples_leaf': [1, 2, 3, 4, 5, 6, 7]
     }, 'DT': {
-        'max_features': [5, 6, 7],
-        'max_depth': [6, 10, 20, None],
-        'min_samples_leaf': [1, 5e-4, 1e-5]
+        'max_features': [10, None],
+        'max_depth': [10, 20, None],
+        'min_samples_leaf': [1, 2]
     }, 'BT': {
-        'n_estimators': [400, 500],
-        'max_features': [5, 6, 7],
-        'max_samples': [1, 0.9, 0.8]
+        'n_estimators': [500],
+        'max_features': [1.0, 10, 5, 7],
+        'max_samples': [1.0, 0.9]
     }, 'ABR': {
-        'n_estimators': [300, 400, 500, 600, 700],
-        'learning_rate': [0.005, 0.0098, 0.01, 0.05],
+        'n_estimators': [800],
+        'learning_rate': [0.005],
         'loss': ['linear', 'square']
     }, 'KNN': {
-        'n_neighbors': [5, 8],
+        'n_neighbors': [20, 40, 50],
         'weights': ['uniform', 'distance'],
         'leaf_size': [30, 50],
         'p': [1, 3],

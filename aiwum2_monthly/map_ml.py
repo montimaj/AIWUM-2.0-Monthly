@@ -316,7 +316,7 @@ if __name__ == '__main__':
     parser.add_argument('--model-name', type=str, default='DRF',
                         help="Set model name. Valid names include 'LGBM', 'DRF', 'RF', 'ETR', 'DT', 'BT', 'ABR', "
                              "'KNN', 'LR'")
-    parser.add_argument('--randomized-search', type=boolean_string, default=True,
+    parser.add_argument('--randomized-search', type=boolean_string, default=False,
                         help='Set False to use the exhaustive GridSearchCV')
     parser.add_argument('--fold-count', type=int, default=5, help='Number of folds for kFold')
     parser.add_argument('--repeats', type=int, default=3, help='Number of repeats for kFold')

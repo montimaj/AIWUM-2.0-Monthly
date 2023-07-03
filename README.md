@@ -38,26 +38,170 @@ The figure below shows the general processing workflow.
 Note that for 2021, we use the 2020 LANID TIF file and the 2020 permitted boundaries shapefile.
 
 In this study, we use Gradient Boosting Machine (GBM) to solve a multi-variate regression problem wherein our target is to predict the monthly groundwater use across the MISE from 2014-2021. The model prediction results are shown [here](Outputs/LGBM_Results.rtf). Note that compared to the AIWUM 2.0 model, the test R2 is higher with lower RMSE and MAE. This is because the disaggregated data using the real-time weights have consistent weights for each month and thus, the model is able to provide better results.
-Here we used the [LightGBM](https://lightgbm.readthedocs.io/en/v3.3.5/) ([Ke et al., 2017](https://proceedings.neurips.cc/paper/2017/file/6449f44a102fde848669bdd9eb6b76fa-Paper.pdf)) Python library to implement the AIWUM 2 model and compared its performance against other algorithms, e.g., Distributed Random Forests (DRF), Support Vector Machine (SVM), Extremely Randomized Trees (ERT), Bagging Trees (BT), k-Nearest Neighbors (KNN), and Multiple Linear Regression (MLR). The model comparison is shown below where the metrics are rounded to 3 decimal places.
+Here we used the [LightGBM](https://lightgbm.readthedocs.io/en/v3.3.5/) ([Ke et al., 2017](https://proceedings.neurips.cc/paper/2017/file/6449f44a102fde848669bdd9eb6b76fa-Paper.pdf)) Python library to implement the AIWUM 2 model and compared its performance against other algorithms, e.g., Distributed Random Forests (DRF), Support Vector Regression (SVR), Extremely Randomized Trees (ERT), Bagging Trees (BT), AdaBoost Regression (ABR), Decision Tree (DT), k-Nearest Neighbors (KNN), and Multiple Linear Regression (MLR). The model comparison is shown below where the metrics are rounded to 3 decimal places (the table is sorted based on the Test RMSE). RMSE was used as the error function in all these models.
 
-| Model   | Train R2  | Train RMSE (mm) | Train MAE (mm) | Test R2   | Test RMSE (mm) | Test MAE (mm) |
-|---------|-----------|-----------------|----------------|-----------|----------------|---------------|
-| **GBM** | **0.831** | **16.988**      | **10.376**     | **0.726** | **21.619**     | **12.652**    |
-| DRF     | 0.658     | 24.715          | 15.528         | 0.639     | 24.817         | 14.881        |
-| RF      | 0.546     | 28.343          | 18.665         | 0.548     | 27.774         | 18.239        |
-| ETR     | 0.728     | 21.66           | 13.268         | 0.657     | 24.201         | 13.88         |
-| BT      |
-| SVM     | 0.429     | 31.795          | 21.308         | 0.45      | 30.651         | 21.268        |
-| KNN     |
-| MLR     | 0.449     | 31.218          | 21.65          | 0.45      | 30.653         | 21.271        |
+
+<style type="text/css">
+.tg  {border-collapse:collapse;border-spacing:0;}
+.tg td{border-color:black;border-style:solid;border-width:1px;font-family:Arial, sans-serif;font-size:14px;
+  overflow:hidden;padding:10px 5px;word-break:normal;}
+.tg th{border-color:black;border-style:solid;border-width:1px;font-family:Arial, sans-serif;font-size:14px;
+  font-weight:normal;overflow:hidden;padding:10px 5px;word-break:normal;}
+.tg .tg-amwm{font-weight:bold;text-align:center;vertical-align:top}
+.tg .tg-0lax{text-align:left;vertical-align:top}
+.tg .tg-dg41{background-color:#dad8a5;text-align:left;vertical-align:top}
+</style>
+<table class="tg">
+<thead>
+  <tr>
+    <th class="tg-1wig" rowspan="2">Model</th>
+    <th class="tg-1wig" colspan="3">Training</th>
+    <th class="tg-1wig" colspan="3">Validation</th>
+    <th class="tg-1wig" colspan="3"><span style="font-weight:bold;font-style:normal">Test</span></th>
+  </tr>
+  <tr>
+    <th class="tg-0lax">R<sup>2</sup></th>
+    <th class="tg-0lax">RMSE (mm)</th>
+    <th class="tg-0lax">MAE (mm)</th>
+    <th class="tg-0lax">R<sup>2</sup></th>
+    <th class="tg-0lax">RMSE (mm)</th>
+    <th class="tg-0lax">MAE (mm)</th>
+    <th class="tg-0lax">R<sup>2</sup></th>
+    <th class="tg-0lax">RMSE (mm)</th>
+    <th class="tg-0lax">MAE (mm)</th>
+  </tr>
+</thead>
+<tbody>
+  <tr>
+    <td class="tg-dg41">GBM</td>
+    <td class="tg-dg41">0.831</td>
+    <td class="tg-dg41">16.988</td>
+    <td class="tg-dg41">10.376</td>
+    <td class="tg-dg41">0.687</td>
+    <td class="tg-dg41">23.531</td>
+    <td class="tg-dg41">13.815</td>
+    <td class="tg-dg41">0.726</td>
+    <td class="tg-dg41">21.619</td>
+    <td class="tg-dg41">12.652</td>
+  </tr>
+  <tr>
+    <td class="tg-0lax">RF</td>
+    <td class="tg-0lax">0.823</td>
+    <td class="tg-0lax">17.685</td>
+    <td class="tg-0lax">10.009</td>
+    <td class="tg-0lax">0.664</td>
+    <td class="tg-0lax">24.397</td>
+    <td class="tg-0lax">13.982</td>
+    <td class="tg-0lax">0.683</td>
+    <td class="tg-0lax">23.249</td>
+    <td class="tg-0lax">13.316</td>
+  </tr>
+  <tr>
+    <td class="tg-0lax">BT</td>
+    <td class="tg-0lax">0.941</td>
+    <td class="tg-0lax">10.224</td>
+    <td class="tg-0lax">6.177</td>
+    <td class="tg-0lax">0.644</td>
+    <td class="tg-0lax">25.071</td>
+    <td class="tg-0lax">15.094</td>
+    <td class="tg-0lax">0.682</td>
+    <td class="tg-0lax">23.3</td>
+    <td class="tg-0lax">13.385</td>
+  </tr>
+  <tr>
+    <td class="tg-0lax">ERT</td>
+    <td class="tg-0lax">0.795</td>
+    <td class="tg-0lax">18.559</td>
+    <td class="tg-0lax">10.682</td>
+    <td class="tg-0lax">0.647</td>
+    <td class="tg-0lax">24.996</td>
+    <td class="tg-0lax">14.402</td>
+    <td class="tg-0lax">0.662</td>
+    <td class="tg-0lax">24.01</td>
+    <td class="tg-0lax">13.643</td>
+  </tr>
+  <tr>
+    <td class="tg-0lax">DRF</td>
+    <td class="tg-0lax">0.668</td>
+    <td class="tg-0lax">24.236</td>
+    <td class="tg-0lax">14.731</td>
+    <td class="tg-0lax">0.631</td>
+    <td class="tg-0lax">25.568</td>
+    <td class="tg-0lax">15.413</td>
+    <td class="tg-0lax">0.645</td>
+    <td class="tg-0lax">24.605</td>
+    <td class="tg-0lax">14.861</td>
+  </tr>
+<tr>
+    <td class="tg-0lax">KNN</td>
+    <td class="tg-0lax">0.819</td>
+    <td class="tg-0lax">13.798</td>
+    <td class="tg-0lax">7.516</td>
+    <td class="tg-0lax"><0.622</td>
+    <td class="tg-0lax">25.872</td>
+    <td class="tg-0lax">15.034</td>
+    <td class="tg-0lax">0.632</td>
+    <td class="tg-0lax">25.05</td>
+    <td class="tg-0lax">14.247</td>
+  </tr>
+  <tr>
+    <td class="tg-0lax">DT</td>
+    <td class="tg-0lax">0.868</td>
+    <td class="tg-0lax">13.158</td>
+    <td class="tg-0lax">7.076</td>
+    <td class="tg-0lax">0.484</td>
+    <td class="tg-0lax">30.136</td>
+    <td class="tg-0lax">16.872</td>
+    <td class="tg-0lax">0.596</td>
+    <td class="tg-0lax">26.26</td>
+    <td class="tg-0lax">15.271</td>
+  </tr>
+  <tr>
+    <td class="tg-0lax">ABR</td>
+    <td class="tg-0lax">0.473</td>
+    <td class="tg-0lax">30.541</td>
+    <td class="tg-0lax">21.287</td>
+    <td class="tg-0lax">0.468</td>
+    <td class="tg-0lax">30.689</td>
+    <td class="tg-0lax">21.336</td>
+    <td class="tg-0lax">0.469</td>
+    <td class="tg-0lax">30.109</td>
+    <td class="tg-0lax">21.354</td>
+  </tr>
+  <tr>
+    <td class="tg-0lax">SVR</td>
+    <td class="tg-0lax">0.423</td>
+    <td class="tg-0lax">31.795</td>
+    <td class="tg-0lax">21.308</td>
+    <td class="tg-0lax">0.428</td>
+    <td class="tg-0lax">31.805</td>
+    <td class="tg-0lax">21.319</td>
+    <td class="tg-0lax">0.45</td>
+    <td class="tg-0lax">30.651</td>
+    <td class="tg-0lax">210.268</td>
+  </tr>
+  <tr>
+    <td class="tg-0lax">MLR</td>
+    <td class="tg-0lax">0.449</td>
+    <td class="tg-0lax">31.218</td>
+    <td class="tg-0lax">21.65</td>
+    <td class="tg-0lax">0.449</td>
+    <td class="tg-0lax">31.232</td>
+    <td class="tg-0lax">21.66</td>
+    <td class="tg-0lax">0.45</td>
+    <td class="tg-0lax">30.653</td>
+    <td class="tg-0lax">21.271</td>
+  </tr>
+</tbody>
+</table>
 
 
 ## AIWUM 1.1 vs 2.1 Comparison
 
-| **2014**                                                             | **2015**                                                             | **2016**                                                             |
-|----------------------------------------------------------------------|----------------------------------------------------------------------|----------------------------------------------------------------------|
+| **2014**                                                        | **2015**                                                             | **2016**                                                             |
+|-----------------------------------------------------------------|----------------------------------------------------------------------|----------------------------------------------------------------------|
 | ![preview](Outputs/AIWUM_Comparison/AIWUM_Total_Comparison_2014.png) | ![preview](Outputs/AIWUM_Comparison/AIWUM_Total_Comparison_2015.png) | ![preview](Outputs/AIWUM_Comparison/AIWUM_Total_Comparison_2016.png) |
-| <center>**2017**</center>                                            | <center>**2018**</center>                                            | <center>**2019**</center>                                            |
+| <div align="center">**2017**</div>                              | <div align="center">**2018**</div>                                   | <div align="center">**2019**</div>                                   |
 | ![preview](Outputs/AIWUM_Comparison/AIWUM_Total_Comparison_2017.png) | ![preview](Outputs/AIWUM_Comparison/AIWUM_Total_Comparison_2018.png) | ![preview](Outputs/AIWUM_Comparison/AIWUM_Total_Comparison_2019.png) |
 
 
