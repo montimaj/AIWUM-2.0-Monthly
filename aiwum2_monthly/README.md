@@ -68,7 +68,7 @@ data repository. After completing step 3, run ```earthengine authenticate```. Th
 for the earth-engine Python API is available [here](https://developers.google.com/earth-engine/guides/python_install). The Google Cloud CLI tools
 may be required for this GEE authentication step. Refer to the installation docs [here](https://cloud.google.com/sdk/docs/install-sdk).
 
-### 5. Running AIWUM 2.0
+### 5. Running AIWUM 2.1
 Make sure that the aiwum2 conda environment is active. If not, run ```conda activate aiwum2``` before running the following codes.
 #### Linux/Mac Terminal:
 ```
@@ -198,7 +198,7 @@ usage: map_ml.py [-h] --input-rt-shp INPUT_RT_SHP [--site-id-shp SITE_ID_SHP] [-
                  [--drop-attr DROP_ATTR [DROP_ATTR ...]] [--outlier-op OUTLIER_OP] [--compare-aiwums COMPARE_AIWUMS] [--load-pred-raster LOAD_PRED_RASTER] [--load-pred-file LOAD_PRED_FILE] [--load-map-extent LOAD_MAP_EXTENT] [--aiwum1-monthly-tot-dir AIWUM1_MONTHLY_TOT_DIR] --pred-year-list PRED_YEAR_LIST [PRED_YEAR_LIST ...] [--use-dask USE_DASK] --swb-data-path SWB_DATA_PATH
                  [--hsg-to-inf HSG_TO_INF] [--volume-units VOLUME_UNITS] [--pdp-plot-features PDP_PLOT_FEATURES [PDP_PLOT_FEATURES ...]] [--calc-cc CALC_CC] [--calc-relative-et CALC_RELATIVE_ET] [--calc-eff-ppt CALC_EFF_PPT]
 
-Flags to run AIWUM 2.0
+Flags to run AIWUM 2.1
 
 options:
   -h, --help            show this help message and exit

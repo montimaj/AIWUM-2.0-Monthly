@@ -225,7 +225,7 @@ def run_map_ml(args: argparse.Namespace) -> None:
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(
-        description='Flags to run AIWUM 2.0',
+        description='Flags to run AIWUM 2.1',
         formatter_class=argparse.ArgumentDefaultsHelpFormatter
     )
     parser.add_argument('--input-rt-shp', type=str, required=True, help='Input real-time flowmeter shapefile')
