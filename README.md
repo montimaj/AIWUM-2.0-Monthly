@@ -1,5 +1,5 @@
 # AIWUM 2.1
-Machine Learning codes for the USGS MAP project.
+Machine Learning codes for the monthly USGS MAP project.
 
 Authors: [Sayantan Majumdar](https://scholar.google.com/citations?user=iYlO-VcAAAAJ&hl=en) [sayantan.majumdar@dri.edu], [Ryan Smith](https://scholar.google.com/citations?user=nzSrr8oAAAAJ&hl=en) [ryan.g.smith@colostate.edu], and [Vincent E. White](https://www.usgs.gov/staff-profiles/vincent-e-white) [vwhite@usgs.gov]
 
@@ -33,6 +33,12 @@ The predictor variables include latitude, longitude, crop type, precipitation, m
 | Soil Moisture                        | ---            | Entire year         | ~ 4,000                | [Abatzoglou et al. (2018)](https://doi.org/10.1038/sdata.2017.191)                                    | This dataset is available at the monthly scale.                                                                                                                                                                     |
 
 
+## Disaggregating VMP data with the real-time weights
+For the annual model, we disaggregated with AIWUM 2.0 predictions with the normalized crop-specific weights derived from the real-time flowmeter data. Here, we apply the same approach to 
+disaggregate the original VMP data. Therefore, we develop monthly VMP data from the annual one and then include the aggregated monthly real-time measurements as well. One caveat of this approach is that 
+the disaggregated VMP data do not represent the actual ground truth and can be conceptualized as 'simulated data'.
+
+## Model Results
 In this study, we use Gradient Boosting Machine (GBM) to solve a multi-variate regression problem wherein our target is to predict the monthly groundwater use across the MISE from 2014-2021. The model prediction results are shown [here](Outputs/LGBM_Results.rtf). Note that compared to the AIWUM 2.0 model, the test R2 is higher with lower RMSE and MAE. This is because the disaggregated data using the real-time weights have consistent weights for each month and thus, the model is able to provide better results.
 Here we used the [LightGBM](https://lightgbm.readthedocs.io/en/v3.3.5/) ([Ke et al., 2017](https://proceedings.neurips.cc/paper/2017/file/6449f44a102fde848669bdd9eb6b76fa-Paper.pdf)) Python library to implement the AIWUM 2 model and compared its performance against other algorithms, e.g., Distributed Random Forests (DRF), Random Forests (RF), Support Vector Regression (SVR), Extremely Randomized Trees (ERT), Bagging Trees (BT), AdaBoost Regression (ABR), Decision Tree (DT), k-Nearest Neighbors (KNN), and Multiple Linear Regression (MLR). The model comparison is shown below where the metrics are rounded to 3 decimal places (the table is sorted based on the Test RMSE). RMSE was used as the error function in all these models.
 
