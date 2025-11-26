@@ -1,0 +1,34 @@
+crop Cotton outliers: 570
+crop Soybeans outliers: 1236
+crop Fish Culture outliers: 258
+crop Corn outliers: 413
+crop Rice outliers: 130
+Old DF rows = 63926, New DF rows = 61311
+2607 outliers removed...
+
+Searching best params for LGBM...
+Train Results...
+R2: 0.8311609113821511 RMSE: 16.98763011583212 MAE: 10.375800255832772
+Validation Results...
+R2: 0.6868698425432002 RMSE: 23.5314643411344 MAE: 13.81531952962771
+Best params:  {'subsample': 1, 'path_smooth': 0.2, 'num_leaves': 127, 'n_estimators': 800, 'min_child_samples': 30, 'max_depth': 20, 'learning_rate': 0.05, 'colsample_bytree': 1, 'colsample_bynode': 1}
+             Features    F_IMP
+8              lat_dd  0.17934
+9             long_dd  0.17650
+2              SSEBop  0.13876
+10                ppt  0.11846
+11               tmax  0.11825
+0                  RO  0.10686
+1            SM_IDAHO  0.10531
+7       crop_Soybeans  0.01837
+6           crop_Rice  0.01316
+3           crop_Corn  0.01057
+5   crop_Fish Culture  0.00921
+4         crop_Cotton  0.00519
+***Overall stats***
+
+Train + Validation results...
+R2: 0.899 RMSE: 13.348 MAE: 8.107
+
+Test results...
+R2: 0.726 RMSE: 21.619 MAE: 12.652

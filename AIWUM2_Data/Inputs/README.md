@@ -27,6 +27,8 @@ Note: We will soon update the input datasets using the latest OpenET, LANID, CDL
 | VMP_Readings_Latest_2014_2020.csv | Voluntary Metering Program (VMP) annual irrigation well withdrawal data for wells in the Mississippi Delta. Data provided by Mississippi Department of Environmental Quality.                    | [Majumdar and others (2024b)](https://doi.org/10.5066/P9CET25K)                                                                                                                                                                                                          |
 
 
+The input datasets are available [here](https://dri0-my.sharepoint.com/:f:/g/personal/sayantan_majumdar_dri_edu/Et8StBcvtJZAhYUlxJh2SnIBrp-hdtmvS5ER_70bWhzXKQ?e=1tKLds).
+
 ### Related External Resources
 Abatzoglou, J.T., Dobrowski, S.Z., Parks, S.A., and Hegewisch, K.C., 2018, TerraClimate, a high-resolution global dataset of monthly climate and climatic water balance from 1958–2015, Scientific Data, 5(1), 170191, https://doi.org/10.1038/sdata.2017.191.
 
