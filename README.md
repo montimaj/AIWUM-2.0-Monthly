@@ -10,6 +10,8 @@ Majumdar, S., Smith, R. G., and Hasan, M. F, 2025, A High-Resolution Data-Driven
 
 Majumdar, S., Smith, R. G., Hasan, M. F., Wilson, J. L., White, V. E., Bristow, E. L., Rigby, J. R., Kress, W. H., and Painter, J. A., 2024, Improving crop-specific groundwater use estimation in the Mississippi Alluvial Plain: Implications for integrated remote sensing and machine learning approaches in data-scarce regions, Journal of Hydrology: Regional Studies, 52, 101674, https://doi.org/10.1016/j.ejrh.2024.101674
 
+Majumdar, S., Smith, R.G., Hasan, M.F., Wilson, J.L., White, V.E., Bristow, E.L., Rigby, J.R., Kress, W.H., and Painter, J.A., 2024, Aquaculture and Irrigation Water Use Model 2.0 software, U.S. Geological Survey software release, https://doi.org/10.5066/P137FIUZ.
+
 ## Summary
 
 The Mississippi Alluvial Plain (MAP) is one of the most productive agricultural regions in the US and extracts more than 11 km<sup>3</sup>/year for irrigation activities. The heavy drivers of groundwater use are aquaculture and crops, which include rice, cotton, corn, and soybeans ([Wilson, 2021](https://doi.org/10.3133/sir20215011)). Consequently, groundwater-level declines in the MAP region ([Clark and others, 2011](https://doi.org/10.3133/pp1785)) pose a substantial challenge to water sustainability, and hence, we need reliable groundwater pumping monitoring solutions to manage this resource appropriately.

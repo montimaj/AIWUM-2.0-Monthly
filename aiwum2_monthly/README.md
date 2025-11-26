@@ -13,6 +13,8 @@ Majumdar, S., Smith, R. G., and Hasan, M. F, 2025, A High-Resolution Data-Driven
 
 Majumdar, S., Smith, R. G., Hasan, M. F., Wilson, J. L., White, V. E., Bristow, E. L., Rigby, J. R., Kress, W. H., and Painter, J. A., 2024, Improving crop-specific groundwater use estimation in the Mississippi Alluvial Plain: Implications for integrated remote sensing and machine learning approaches in data-scarce regions, Journal of Hydrology: Regional Studies, 52, 101674, https://doi.org/10.1016/j.ejrh.2024.101674
 
+Majumdar, S., Smith, R.G., Hasan, M.F., Wilson, J.L., White, V.E., Bristow, E.L., Rigby, J.R., Kress, W.H., and Painter, J.A., 2024, Aquaculture and Irrigation Water Use Model 2.0 software, U.S. Geological Survey software release, https://doi.org/10.5066/P137FIUZ.
+
 ## Running the project
 
 ### 1. Download and install Anaconda/Miniconda
